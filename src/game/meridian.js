@@ -9,7 +9,7 @@ import { G, S } from './state.js';
 import { MER } from '../data/meridian.js';
 import { log, refresh } from '../render/presenter.js';
 import { calcStats } from './stats.js';
-import { buildSkills, isAuxKind } from './skills.js';
+import { buildSkills, isRune, runeTakenBy, toggleLink, linkCount } from './skills.js';
 
 /** 节点状态：deep 大成 / on 已通 / lock 未解锁 / ready 可点 */
 export function merState(nd) {
@@ -46,38 +46,47 @@ export function onNode(id) {
   return { ok: true, node: nd };
 }
 
-/** 设/拆链接：把第 m 个主动技挂到第 n 个辅助技上；n 为 null 则拆 */
+/**
+ * 挂/拆一道符。n 为 null 则清空这一式所有符。
+ * 同一个符只能挂一式，一式最多挂两道（RUNE_MAX）。
+ */
 export function setLink(m, n) {
-  if (n == null) delete G.links[m];
-  else G.links[m] = n;
+  if (n == null) {
+    delete G.links[m];
+    refresh();
+    return { ok: true };
+  }
+  const r = toggleLink(m, n);
+  if (!r.ok) {
+    log(r.reason === 'full' ? '这一式已挂满两道符。' : '这道符已挂在别的法术上。', '#a83b2c');
+  }
   refresh();
-  return { ok: true };
-}
-
-/** 已被别的主动技占用的辅助星位 */
-export function auxTakenBy(auxIdx) {
-  for (const k in G.links) if (G.links[k] === auxIdx) return +k;
-  return null;
+  return r;
 }
 
 /**
- * 某个主动技能挂辅助时的候选表（供 ui 渲染）
- * @returns {Array<{idx:number, star:string, skill:object, current:boolean, takenBy:number|null}>}
+ * 某一式法术挂符时的候选表（供 ui 渲染）
+ * @returns {Array<{idx:number, star:string, rune:object, current:boolean, takenBy:number|null}>}
  */
 export function linkCandidates(mainIdx) {
   const sk = buildSkills();
   const main = sk[mainIdx];
   if (!main) return [];
+  const cur = G.links[mainIdx];
+  const list = Array.isArray(cur) ? cur : cur == null ? [] : [cur];
   const out = [];
   sk.forEach((s, j) => {
-    if (!s || !isAuxKind(s.kind)) return;
-    const taker = auxTakenBy(j);
+    if (!s || !isRune(s)) return;
+    const taker = runeTakenBy(j);
     out.push({
       idx: j,
       star: s.pos,
+      rune: s.rune,
       skill: s,
-      current: G.links[mainIdx] === j,
+      lv: s.lv,
+      current: list.includes(j),
       takenBy: taker != null && taker !== mainIdx ? taker : null,
+      slots: linkCount(mainIdx),
     });
   });
   return out;

@@ -24,7 +24,9 @@ export function layoutMobs() {
  */
 export function makeWave(n) {
   const ramp = Math.min(1, 0.4 + n * 0.075);
-  const d = 1 + (G.diff - 1) * ramp;
+  // 元婴以上再加一档：硬档就得硬，不然"苦"和"死"只是数字好看
+  const hard = G.diff > 2 ? 1 + (G.diff - 2) * 0.2 : 1;
+  const d = (1 + (G.diff - 1) * ramp) * hard;
   const cnt = Math.min(4, 2 + Math.floor(n / 4));
 
   const arr = [];

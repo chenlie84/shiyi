@@ -9,7 +9,10 @@ import { afLabel } from './format.js';
 import { G, S } from '../game/state.js';
 import { calcStats, xpNeed, relOf } from '../game/stats.js';
 import { nmOf, afText, effGrade } from '../game/item.js';
-import { buildSkills, isAuxKind, canLink, auxOf, auxTakenBy, skillPower } from '../game/skills.js';
+import {
+  buildSkills, isRune, resolve, runeTakenBy, linkCount,
+  skillPower, pruneLinks, STARS as SK_STARS,
+} from '../game/skills.js';
 import { IDENT_COST } from '../game/economy.js';
 import { MULT, COL } from '../data/elements.js';
 import { RAR_COL, RAR_NAME } from '../data/rarity.js';
@@ -96,38 +99,46 @@ export function refresh(){
   // 七星
   const skBox=$('skills'); skBox.innerHTML='';
   const sk=buildSkills();
-  // 配装一变，星位对应的技能就换了，顺手清掉失效的链
-  Object.keys(G.links).forEach(k=>{
-    const a2=sk[G.links[k]], m2=sk[k];
-    if(!a2||!isAuxKind(a2.kind)||!m2||!canLink(m2.kind)) delete G.links[k];
-  });
+  // 配装一变，星位对应的技能就换了，顺手清掉失效的符
+  pruneLinks(sk);
+
+  const PATH_N={line:'直线',arc:'抛射',zigzag:'折线',homing:'追踪',orbit:'环流',skyfall:'天降'};
   const stars=['★','★★','★★★','★★★★','★★★★★','★★★★★★','★★★★★★★'];
-  const STARS=['天枢','天璇','天玑','天权','玉衡','开阳','摇光'];
   if(!sk.some(x=>x)){
     skBox.innerHTML='<div style="grid-column:1/3;text-align:center;color:var(--ink2);font-size:11.5px;padding:12px 0">'+
       '三才未成阵，七星不显。<br>点行囊里的「佩」，先装上三件。</div>';
   }
   sk.forEach((s,i)=>{
     const d=document.createElement('div');
-    if(!s){ d.className='sk dis'; d.innerHTML='<div class="nm">'+STARS[i]+'</div><div class="ds">未成</div>'; skBox.appendChild(d); return; }
-    const pw=skillPower(s,st.s,e);
-    d.className='sk'+(G.busy?' dis':'');
-    // 链接：主动技挂着辅助时，威力和提示都要把加成算进去
-    const a2 = canLink(s.kind) ? auxOf(i,sk) : null;
-    const linkMul = a2 ? (1+(a2.lv||1)*0.06) * (a2.kind==='buff'?1.3:1) : 1;
-    let linkRow='';
-    if(canLink(s.kind)){
-      linkRow='<div class="lk" data-lk="1" onclick="event.stopPropagation();pickLink('+i+')">'+
-        (a2? '链 ▸ '+a2.name+' <span style="color:#8a5a1f">Lv'+a2.lv+'</span>' : '<span style="color:#8a5a1f">＋ 挂辅助</span>')+'</div>';
-    } else if(isAuxKind(s.kind)){
-      const taker=auxTakenBy(i);
-      linkRow='<div class="lk dim">辅助'+(taker!=null? ' · 挂于'+STARS[taker] : ' · 可被链')+'</div>';
+    if(!s){ d.className='sk dis'; d.innerHTML='<div class="nm">'+SK_STARS[i]+'</div><div class="ds">未成</div>'; skBox.appendChild(d); return; }
+
+    // 符位：不打人，只改造
+    if(isRune(s)){
+      const taker=runeTakenBy(i);
+      d.className='sk rune';
+      d.innerHTML='<div class="nm"><span>'+s.name+' <span class="lv">Lv'+s.lv+'</span></span>'+
+        '<span class="star">'+stars[i]+'</span></div>'+
+        '<div class="ds">'+s.pos+' · '+s.from+' · 符</div>'+
+        '<div class="ds">'+s.desc+'</div>'+
+        '<div class="lk dim">'+(taker!=null? '挂于 '+SK_STARS[taker] : '未挂 · 点法术上的「挂符」')+'</div>';
+      d.onclick=()=>castSkill(i);   // 点符也给个提示：符不能单独放
+      skBox.appendChild(d);
+      return;
     }
-    d.innerHTML='<div class="nm"><span>'+s.name+' <span class="lv">Lv'+s.lv+'</span></span><span class="star">'+stars[i]+'</span></div>'+
-      '<div class="ds">'+s.pos+' · '+s.from+' · '+(s.elem||'')+'</div>'+
-      '<div class="ds">'+s.desc+'</div>'+
-      '<div class="pw">约 '+Math.round(pw*linkMul)+' 点'+(s.kind==='heal'?'回复':s.kind==='buff'?'增益':s.kind==='shield'?'护盾':'伤害')+
-        (a2?'<span style="color:#8a5a1f;font-weight:400">（含链）</span>':'')+'</div>'+
+
+    const spec=resolve(s,sk);
+    const pw=skillPower(s,spec,st.s,e);
+    const cnt=linkCount(i);
+    d.className='sk'+(G.busy?' dis':'');
+    const shot=spec.proj+' 发 · '+PATH_N[spec.path]+(spec.pierce? ' · 穿'+spec.pierce : '')+
+      (spec.traitN? ' · '+spec.traitN : '');
+    const linkRow='<div class="lk" onclick="event.stopPropagation();pickLink('+i+')">'+
+      (cnt? '符 '+cnt+'/2 ▸ '+spec.tags.join('·') : '<span style="color:#8a5a1f">＋ 挂符（0/2）</span>')+'</div>';
+    d.innerHTML='<div class="nm"><span>'+s.name+' <span class="lv">Lv'+s.lv+'</span></span>'+
+      '<span class="star">'+stars[i]+'</span></div>'+
+      '<div class="ds">'+s.pos+' · '+s.from+' · '+(s.elem||'')+(s.crossN? ' · '+s.crossN:'')+'</div>'+
+      '<div class="ds">'+shot+'</div>'+
+      '<div class="pw">约 '+pw+' 点'+(cnt?'<span style="color:#8a5a1f;font-weight:400">（含符）</span>':'')+'</div>'+
       linkRow;
     d.onclick=()=>castSkill(i);
     skBox.appendChild(d);

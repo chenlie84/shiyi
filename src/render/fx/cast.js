@@ -13,44 +13,28 @@ import { hexA } from '../../core/math.js';
 import { rand } from '../../core/rng.js';
 import { COL_L, ELEM_FX } from '../palette.js';
 import { alive } from '../../game/waves.js';
+import { drawBolt } from './bolt.js';
 
 
-export function spawnCastFX(sk){
+export function spawnCastFX(sk, spec){
   const F=ELEM_FX[sk.elem]||ELEM_FX.木;
-  const tgt=alive();
-  const px=PLAYER_X+30, py=GROUND-64;
-  // 水系是贴着地荡开的，别的系是打在怪身上
-  const fy = F.k==='ring'? GROUND-2 : GROUND-46;
+  const path=spec? spec.path : 'line';
+  const proj=spec? spec.proj : 1;
 
-  // 自身类：护罩 / 疗伤 / 增益，各给一套
-  if(sk.kind==='heal'||sk.kind==='shield'||sk.kind==='buff'){
-    if(sk.kind==='shield'){
-      S.fx.push({k:'dome', x:PLAYER_X, y:GROUND, col:'#7fc0ff', t:0, life:0.92, r:46});
-    } else {
-      const col = sk.kind==='heal'? '#8fe0a8' : '#ffd166';
-      S.fx.push({k:'aura', x:PLAYER_X, y:GROUND, col, t:0, life:0.86,
-               r: sk.kind==='buff'?58:48, leaf: sk.kind==='heal'});
-      if(sk.kind==='buff') S.fx.push({k:'spiral', x:PLAYER_X, y:GROUND, col:'#ffd166', t:0, life:0.72});
-    }
-    return;
+  // 起手：掌心聚气 —— 一发爆闪，很短，别抢戏
+  S.fx.push({k:'flash', x:PLAYER_X+26, y:GROUND-64, col:F.col, t:0, life:0.2});
+
+  // 大术（多发 / 天降）：先推一道气浪出来
+  if(proj>=3 || path==='skyfall'){
+    S.fx.push({k:'wave', x:PLAYER_X, y:GROUND-56, col:F.col, t:0, life:0.5});
   }
-
-  // 全体技：一道弧形气浪推过去，每只怪身上各自开花
-  if(sk.kind==='aoe'){
-    S.fx.push({k:'wave', x:PLAYER_X, y:GROUND-56, col:F.col, t:0, life:0.62});
-    tgt.forEach(m=>{
-      S.fx.push({k:'flash', x:m.x, y:GROUND-52, col:F.col, t:0, life:0.26});
-      S.fx.push({k:F.k, x:m.x, y:fy, col:F.col, t:0, life:0.56, s:1.15});
-    });
-    return;
+  // 环流：绕身一圈的符粒，读起来就是"先绕再放"
+  if(path==='orbit'){
+    S.fx.push({k:'spiral', x:PLAYER_X, y:GROUND, col:'#ffd166', t:0, life:0.46});
   }
-
-  // 单体技：一道锋芒从人飞向怪，再在怪身上炸开
-  const t0=tgt[0];
-  if(t0){
-    S.fx.push({k:'trail', x1:px, y1:py, x2:t0.x, y2:GROUND-52, col:F.col, t:0, life:0.24});
-    S.fx.push({k:'flash', x:t0.x, y:GROUND-52, col:F.col, t:0, life:0.26});
-    S.fx.push({k:F.k, x:t0.x, y:fy, col:F.col, t:0, life:0.58, s:1});
+  // 自身挂着的符，给一发脚下的短光环，提示"这一招被改过"
+  if(spec && spec.tags && spec.tags.length){
+    S.fx.push({k:'aura', x:PLAYER_X, y:GROUND, col:'#c9a227', t:0, life:0.3, r:26});
   }
 }
 
@@ -60,6 +44,12 @@ export function drawFX(){
   ctx.globalCompositeOperation='lighter';   // 特效当光来画，暗场上才亮得起来
   ctx.lineCap='round';
   S.fx.forEach(e=>{
+    if(e.k==='bolt'){
+      if(e.t<=e.d0) return;                       // 还没轮到这一发
+      const bp=Math.min(1,(e.t-e.d0)/e.fly);
+      drawBolt(e,bp,Math.max(0,1-bp*bp));
+      return;
+    }
     const p=Math.min(1,e.t/e.life);
     const a=Math.max(0,1-p*p);
 

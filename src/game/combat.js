@@ -1,5 +1,8 @@
 /**
- * 回合制战斗：出手 → 敌人还手 → 回合结算
+ * 回合制战斗：出招 → 敌人还手 → 回合结算
+ *
+ * 出招不再是一击了事：一式法术按 spec 发出 proj 枚投射物，
+ * 依次落地、逐发结算，穿够的还能一路穿过去。
  *
  * 这个文件只算数值和流程，屏幕上发生什么全部走 presenter。
  */
@@ -7,17 +10,19 @@
 import { G, S } from './state.js';
 import { calcStats, xpNeed } from './stats.js';
 import { makeItem, nmOf } from './item.js';
-import { buildSkills, auxOf, canLink, skillPower } from './skills.js';
+import { buildSkills, skillPower, resolve } from './skills.js';
 import { makeWave, layoutMobs, alive } from './waves.js';
 import { registerDex } from './dex.js';
 import { rand, chancePct } from '../core/rng.js';
 import { GROUND, PLAYER_X } from '../config.js';
-import { FLAGS } from '../platform/flags.js';
 import { delay } from '../platform/scheduler.js';
 import {
   log, refresh, floatText, burst, hitStop, sfx,
-  spawnCastFX, castCallout, spawnBeams, showLoot,
+  spawnCastFX, spawnBolts, castCallout, spawnBeams, showLoot,
 } from '../render/presenter.js';
+
+const SHOT_GAP = 95; // 每发之间的间隔（毫秒）
+const SHOT_LAG = 150; // 第一发飞行的余量
 
 /** 开一波 */
 export function startWave() {
@@ -37,152 +42,212 @@ export function startWave() {
   refresh();
 }
 
+/** 出手目标：站得最前、还活着的那个 */
+function front() {
+  const list = alive();
+  return list.length ? list[0] : null;
+}
+
+/** 命中的那只之外，站得最近的两只（给"溅"用） */
+function neighbors(m) {
+  return alive().filter((x) => x !== m).sort((a, b) => Math.abs(a.x - m.x) - Math.abs(b.x - m.x));
+}
+
+/**
+ * 一发落地：算伤害、算命中效果、写飘字
+ * @returns {number} 实伤
+ */
+function land(m, base, spec, q, extra = 1, label = '') {
+  if (!m || m.dead) return 0;
+
+  let dmg = base * (0.85 + rand() * 0.3) * extra;
+  dmg *= 1 + ((q.pen + spec.pen) / 100) * 0.6; // 破防：按比例削气防，等效增伤
+
+  // 金·裂：该发自带破甲
+  if (spec.trait === 'rend') dmg *= 1.25;
+
+  const crit = chancePct((q.crit || 0) + spec.crit);
+  if (crit) dmg *= 1 + ((q.critDmg || 0) + spec.critDmg) / 100;
+
+  const v = Math.max(1, Math.round(dmg));
+  m.hp -= v;
+  m.hurt = 0.16;
+  m.hx = 12;
+  burst(m.x, m.y - 10, crit ? 16 : 10, crit ? '#ffd166' : '#e8b04a');
+  floatText(
+    m.x + (rand() - 0.5) * 24,
+    m.y - 24 - (extra < 1 ? 14 : 0),
+    (label || '') + (crit ? '暴 ' : '') + v,
+    crit ? '#ffd166' : '#f0e6c0',
+    crit
+  );
+  if (crit) {
+    sfx('crit');
+    S.shake = Math.max(S.shake, 0.7);
+  }
+  hitStop(v > 0 ? (crit ? 0.085 : 0.045) : 0);
+
+  // 噬血（词条 + 符）
+  const lc = (q.leech || 0) + spec.leech;
+  if (lc > 0) {
+    const h = Math.round((v * lc) / 100);
+    if (h > 0) {
+      S.php = Math.min(calcStats().s.hp, S.php + h);
+      floatText(PLAYER_X + (rand() - 0.5) * 18, GROUND - 104, '+' + h, '#6cbb8c');
+    }
+  }
+
+  /* 副行的"性" */
+  if (spec.trait === 'burn') {
+    const b = Math.max(1, Math.round(v * 0.35));
+    m.hp -= b;
+    floatText(m.x + 16, m.y - 40, '燃 ' + b, '#ff8a5c');
+  } else if (spec.trait === 'splash') {
+    const nb = neighbors(m);
+    if (nb.length) {
+      const s = Math.max(1, Math.round(v * 0.4));
+      nb[0].hp -= s;
+      nb[0].hurt = 0.16;
+      floatText(nb[0].x, nb[0].y - 26, '溅 ' + s, '#8fc4ea');
+      if (nb[0].hp <= 0) { nb[0].dead = true; nb[0].hp = 0; }
+    }
+  } else if (spec.trait === 'bind') {
+    m.atkDown = Math.max(m.atkDown || 0, 0.85);
+  } else if (spec.trait === 'stagger') {
+    m.atkDown = Math.max(m.atkDown || 0, 0.5);
+  }
+
+  /* 符的命中效果 */
+  if (spec.onHit === 'splash') {
+    const nb = neighbors(m);
+    if (nb.length) {
+      const s = Math.max(1, Math.round(v * 0.4));
+      nb[0].hp -= s;
+      nb[0].hurt = 0.16;
+      floatText(nb[0].x, nb[0].y - 26, '震 ' + s, '#9b7ab0');
+      if (nb[0].hp <= 0) { nb[0].dead = true; nb[0].hp = 0; }
+    }
+  } else if (spec.onHit === 'split') {
+    const nb = neighbors(m);
+    const tgt = nb[0] || m;
+    for (let i = 0; i < 2; i++) {
+      if (tgt.dead) break;
+      land(tgt, base * 0.4, { ...spec, onHit: null, trait: null }, q, 0.9, '魂 ');
+    }
+  }
+
+  if (m.hp <= 0) {
+    m.dead = true;
+    m.hp = 0;
+  }
+  return v;
+}
+
 /** 出一招 */
 export function castSkill(idx) {
   if (G.busy || G.over) return;
   const list = buildSkills();
   const sk = list[idx];
   if (!sk) return;
+  if (sk.kind === 'rune') {
+    log('「' + sk.name + '」是符，不能单独施放 —— 挂到一式法术上。', '#a83b2c');
+    return;
+  }
 
   const st = calcStats();
   const e = st.e;
-  const q = st.q;
-  const aux = canLink(sk.kind) ? auxOf(idx, list) : null;
+  const spec = resolve(sk, list);
+  const targets = alive();
+  if (!targets.length || !spec) return;
 
   G.busy = true;
   S.pAnim = 0.3;
 
-  const p = skillPower(sk, st.s, e);
-  const targets = sk.kind === 'aoe' ? alive() : [alive()[0]].filter(Boolean);
-  if (!targets.length) {
-    G.busy = false;
-    return;
+  const power = skillPower(sk, spec, st.s, e); // 整式总威力
+  const per = power * spec.perShot; // 单发威力
+
+  spawnCastFX(sk, spec); // 起手式
+  spawnBolts(spec, targets); // 投射物
+  castCallout(sk.name, sk.elem);
+
+  /* 施法时结算的符效 */
+  if (spec.onCastHeal) {
+    const h = Math.round(power * spec.onCastHeal);
+    S.php = Math.min(st.s.hp, S.php + h);
+    floatText(PLAYER_X, GROUND - 120, '+' + h, '#6cbb8c');
+    log('　符·回春：气血 +' + h, '#2f6b52');
   }
-
-  spawnCastFX(sk); // 五行 + 技能类型 决定这一招长什么样
-  castCallout(sk.name, sk.elem); // 招式名：毛笔字，斜着题
-
-  const healB = 1 + (q.healB || 0) / 100;
-  const linkMul = aux ? 1 + (aux.lv || 1) * 0.06 : 1; // 辅助技等级 → 主攻威力
-  const linkBuff = aux && aux.kind === 'buff' ? 1.3 : 1; // 蓄势类链接：本击 +30%
-
-  // 链接的辅助技随这一招同步触发，按六成强度
-  if (aux) {
-    if (aux.kind === 'heal') {
-      const h = Math.round(skillPower(aux, st.s, e) * 0.9 * 0.6 * healB);
-      S.php = Math.min(st.s.hp, S.php + h);
-      floatText(PLAYER_X, GROUND - 120, '链 +' + h, '#6cbb8c');
-      log('　链·' + aux.name + '：回气血 ' + h, '#2f6b52');
-    } else if (aux.kind === 'shield') {
-      const v = Math.round(skillPower(aux, st.s, e) * 0.8 * 0.6 * healB);
-      S.shield += v;
-      floatText(PLAYER_X, GROUND - 120, '链 盾 ' + v, '#6fa8c9');
-      log('　链·' + aux.name + '：护盾 ' + v, '#38617f');
-    } else {
-      floatText(PLAYER_X, GROUND - 120, '链 蓄势', '#c9a227');
-      log('　链·' + aux.name + '：本击助势 ×1.3', '#a8811f');
-    }
+  if (spec.onCastShield) {
+    const v = Math.round(power * spec.onCastShield);
+    S.shield += v;
+    floatText(PLAYER_X, GROUND - 120, '盾 ' + v, '#6fa8c9');
+    log('　符·护身：护盾 +' + v, '#38617f');
   }
-
-  if (sk.kind === 'heal') {
-    const heal = Math.round(p * 0.9 * healB);
-    S.php = Math.min(st.s.hp, S.php + heal);
-    floatText(PLAYER_X, GROUND - 96, '+' + heal, '#6cbb8c', true);
-    burst(PLAYER_X, GROUND - 40, 12, '#6cbb8c');
-    sfx('heal');
-    log(sk.name + ' Lv' + sk.lv + '：回气血 ' + heal);
-  } else if (sk.kind === 'shield') {
-    const sv = Math.round(p * 0.8 * healB);
-    S.shield += sv;
-    floatText(PLAYER_X, GROUND - 96, '护盾 ' + sv, '#6fa8c9', true);
-    sfx('heal');
-    log(sk.name + ' Lv' + sk.lv + '：护盾 ' + sv);
-  } else if (sk.kind === 'buff') {
+  if (spec.onCastBuff) {
     S.buffNext = 2;
-    floatText(PLAYER_X, GROUND - 96, '蓄势', '#c9a227', true);
-    sfx('heal');
-    log(sk.name + ' Lv' + sk.lv + '：下一击威力翻倍');
-  } else {
-    const doubled = S.buffNext > 0;
-    if (doubled) S.buffNext = 0;
-    let top = 0;
+    floatText(PLAYER_X, GROUND - 120, '蓄势', '#c9a227');
+    log('　符·蓄势：下一击翻倍', '#a8811f');
+  }
 
-    // 器灵 / 诅咒：整体伤害乘数
-    const sp = q.sp;
-    let spiritMul = 1 + ((sk.kind === 'aoe' ? sp.aoe : sp.single) || 0) / 100;
-    if (sp.low && S.php / st.s.hp < 0.3) spiritMul *= 1 + sp.low / 100; // 回天
-    if (sp.first && G.turn === 1) spiritMul *= 1 + sp.first / 100; // 承影
-    spiritMul *= 1 - (sp.weak || 0) / 100; // 诅咒·耗
+  /* 逐发落地 */
+  const doubled = S.buffNext > 0;
+  if (doubled) S.buffNext = 0;
+  const shotMul = doubled ? 2 : 1;
 
-    const strike = (m, scale, extra) => {
-      let dmg = p * (0.85 + rand() * 0.3);
-      if (sk.kind !== 'aoe') dmg *= 1.15;
-      if (doubled) dmg *= 2;
-      dmg *= scale * linkMul * linkBuff * spiritMul;
-      // 破防：按比例削减目标气防，等效增伤
-      dmg *= 1 + (q.pen / 100) * 0.6;
-
-      const crit = chancePct(q.crit);
-      if (crit) dmg *= 1 + q.critDmg / 100;
-
-      const v = Math.max(1, Math.round(dmg));
-      m.hp -= v;
-      m.hurt = 0.16;
-      m.hx = 12;
-      burst(m.x, m.y - 10, crit ? 16 : 10, crit ? '#ffd166' : '#e8b04a');
-      floatText(
-        m.x + (rand() - 0.5) * 24,
-        m.y - 24 - (extra ? 15 : 0),
-        (extra || '') + (crit ? '暴 ' : '') + v,
-        crit ? '#ffd166' : doubled ? '#ffe9a8' : '#f0e6c0',
-        crit || doubled
-      );
-      if (crit) {
-        sfx('crit');
-        S.shake = Math.max(S.shake, 0.7);
-      }
-      top = Math.max(top, v);
-
-      // 噬血
-      if (q.leech > 0) {
-        const h = Math.round((v * q.leech) / 100);
-        if (h > 0) {
-          S.php = Math.min(st.s.hp, S.php + h);
-          floatText(PLAYER_X + (rand() - 0.5) * 18, GROUND - 104, '+' + h, '#6cbb8c');
+  let pending = spec.proj;
+  for (let i = 0; i < spec.proj; i++) {
+    delay(
+      () => {
+        pending--;
+        let m = front();
+        if (m) {
+          let shot = per * shotMul;
+          let pierced = 0;
+          // 穿透：一路打过去，每穿一次衰减两成半
+          for (;;) {
+            land(m, shot, spec, st.q, 1);
+            const nxt = front();
+            if (!nxt || pierced >= spec.pierce) break;
+            m = nxt;
+            shot *= 0.75;
+            pierced++;
+          }
         }
-      }
-
-      if (m.hp <= 0) {
-        m.dead = true;
-        m.hp = 0;
-      }
-
-      // 打击停顿：普通 45ms、暴击 85ms、击杀 100ms —— 整个画面定住一下，手感就出来了
-      hitStop(m.dead ? 0.1 : crit ? 0.085 : 0.045);
-    };
-
-    targets.forEach((m) => {
-      strike(m, 1, '');
-      // 连击：额外一记半伤
-      if (!m.dead && chancePct(q.dbl)) strike(m, 0.55, '连 ');
-    });
-
-    S.shake = Math.max(S.shake, 0.55);
-    sfx('hit');
-    log(
-      sk.name + ' Lv' + sk.lv + '：造成约 ' + Math.round(p * linkMul * linkBuff * spiritMul) +
-        ' 点伤害' + (doubled ? '（蓄势×2）' : '') + (top ? '　最高 ' + top : '')
+        refresh();
+        // 怪物提前死光时后续几发打空，也必须把这一式收尾
+        if (pending === 0) finishCast(spec, power);
+      },
+      SHOT_LAG + i * SHOT_GAP
     );
   }
 
+  sfx('hit');
+  S.shake = Math.max(S.shake, 0.55);
+  log(
+    sk.name + ' Lv' + sk.lv + '：' + spec.proj + ' 发' +
+      (spec.pierce ? '，穿透 ' + spec.pierce : '') +
+      (doubled ? '（蓄势×2）' : '') +
+      '，单发约 ' + Math.round(per * shotMul) +
+      (spec.tags.length ? '　符：' + spec.tags.join('·') : ''),
+    '#8a5a1f'
+  );
   refresh();
+}
 
+/** 这一式走完：要么破阵，要么轮到敌人 */
+function finishCast(spec, power) {
+  const st = calcStats();
+  if (spec.selfHurt) {
+    const d = Math.max(1, Math.round(power * spec.selfHurt));
+    S.php -= d;
+    floatText(PLAYER_X, GROUND - 88, '-' + d, '#a83b2c');
+    if (S.php <= 0) { S.php = 0; onDeath(); return; }
+  }
   if (alive().length === 0) {
     winWave();
     return;
   }
-
-  delay(() => enemyTurn(), 520);
+  delay(() => enemyTurn(), 240);
 }
 
 /** 敌人一起还手 */
@@ -197,6 +262,10 @@ export function enemyTurn() {
 
       let raw = Math.max(1, m.atk - st.s.def * 0.5);
       raw = Math.round(raw * (1 - q.red / 100)); // 减伤
+      if (m.atkDown) {
+        raw = Math.max(1, Math.round(raw * m.atkDown)); // 缠 / 坠
+        m.atkDown = 0;
+      }
 
       let d = raw;
       if (S.shield > 0) {

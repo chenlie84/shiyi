@@ -13,6 +13,7 @@ import { loop } from './render/scene.js';
 import { sfx } from './render/sfx.js';
 import { floatText, burst } from './render/fx/particles.js';
 import { spawnCastFX } from './render/fx/cast.js';
+import { spawnBolts } from './render/fx/bolt.js';
 import { castCallout } from './render/fx/callout.js';
 import { spawnBeams } from './render/fx/beams.js';
 
@@ -50,6 +51,7 @@ function boot() {
     },
     sfx,
     spawnCastFX,
+    spawnBolts,
     castCallout,
     spawnBeams,
     openModal,
@@ -62,6 +64,10 @@ function boot() {
   bindCombatUI({ showRelicPick, showDeath, closeDeath });
 
   installActions();
+
+  // 调试口：控制台里能直接看运行状态（也方便抓特效截图）
+  window.__G = G;
+  window.__S = S;
 
   // 首屏
   resetAll();

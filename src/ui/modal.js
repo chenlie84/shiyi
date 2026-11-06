@@ -15,7 +15,7 @@ import { forge, identify, quenchCost, CAST_COST, GUIDE } from '../game/economy.j
 import { RAR_COL, RAR_NAME, RAR_BG } from '../data/rarity.js';
 import { PRE, SUF, PREK, SUFK, TIERC } from '../data/affixes.js';
 import { COL } from '../data/elements.js';
-import { SK_MAX } from '../data/skills.js';
+import { SK_MAX } from '../game/skills.js';
 
 export function openModal(html){ modalEl().innerHTML=html; maskEl().classList.add('on'); }
 export function closeModal(){ S.modalItem=null; maskEl().classList.remove('on'); }

@@ -11,7 +11,7 @@
 
 import { G, S } from '../src/game/state.js';
 import { calcStats } from '../src/game/stats.js';
-import { buildSkills, skillPower } from '../src/game/skills.js';
+import { buildSkills, skillPower, resolve, toggleLink } from '../src/game/skills.js';
 import { resetAll } from '../src/game/session.js';
 import { castSkill } from '../src/game/combat.js';
 import { autoEquip } from '../src/game/equip.js';
@@ -33,43 +33,42 @@ export function score(it) {
   return s;
 }
 
-/** 该出哪一招：血低先奶，否则打最疼的一招 */
-export function pickSkill(forceAtk) {
+/** 该出哪一招：挑威力最大的那一式（符的加成已经算进去了） */
+export function pickSkill() {
   const st = calcStats();
-  const e = st.e;
   const sk = buildSkills();
-  const hp = st.s.hp;
-
-  if (!forceAtk && S.php / hp < 0.38) {
-    let hi = -1;
-    let hv = 0;
-    for (let i = 0; i < sk.length; i++) {
-      const s = sk[i];
-      if (!s) continue;
-      if (s.kind !== 'heal' && s.kind !== 'shield') continue;
-      const v = skillPower(s, st.s, e);
-      if (v > hv) {
-        hv = v;
-        hi = i;
-      }
-    }
-    if (hi >= 0) return hi;
-  }
-
   let bi = -1;
   let bv = -1;
-  for (let i = 0; i < sk.length; i++) {
-    const s = sk[i];
-    if (!s) continue;
-    if (s.kind !== 'atk' && s.kind !== 'aoe') continue;
-    const v = skillPower(s, st.s, e);
+  sk.forEach((s, i) => {
+    if (!s || s.kind !== 'spell') return;
+    const spec = resolve(s, sk);
+    const v = skillPower(s, spec, st.s, st.e);
     if (v > bv) {
       bv = v;
       bi = i;
     }
-  }
-  if (bi < 0) for (let i = 0; i < sk.length; i++) if (sk[i]) return i;
+  });
   return bi;
+}
+
+/** 把两道符挂到最痛的那一（几）式上 —— 模拟一个会动脑的玩家 */
+export function autoLink() {
+  G.links = {};
+  const list = buildSkills();
+  const st = calcStats();
+  const spells = [];
+  const runes = [];
+  list.forEach((s, i) => {
+    if (!s) return;
+    if (s.kind === 'spell') spells.push({ i, v: skillPower(s, resolve(s, list), st.s, st.e) });
+    else if (s.kind === 'rune') runes.push(i);
+  });
+  spells.sort((a, b) => b.v - a.v);
+
+  let ri = 0;
+  for (const sp of spells) {
+    for (let k = 0; k < 2 && ri < runes.length; k++) toggleLink(sp.i, runes[ri++]);
+  }
 }
 
 /** 熔炉：先把三才上的器铸满，再拿攒下的器魂往上淬 */
@@ -116,6 +115,7 @@ export function manage(policy) {
   spare.slice(7).forEach((i) => salvage(i.id));
 
   buildGear();
+  autoLink();
 }
 
 function mobHp() {
@@ -165,7 +165,7 @@ export function play({ diff, policy, maxWave = 60 }) {
       break;
     }
 
-    const idx = pickSkill(stall > 3);
+    const idx = pickSkill();
     if (idx < 0) {
       flush();
       if (G.busy) continue;

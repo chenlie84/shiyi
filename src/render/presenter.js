@@ -19,7 +19,8 @@ let impl = {
   burst: noop,        // (x, y, count, color)
   hitStop: noop,      // (seconds) 打击停顿
   sfx: noop,          // (type)
-  spawnCastFX: noop,  // (skill)
+  spawnCastFX: noop,  // (skill, spec)
+  spawnBolts: noop,   // (spec, targets) 投射物
   castCallout: noop,  // (text, elem)
   spawnBeams: noop,   // (items[])
   openModal: noop,    // (html)
@@ -47,6 +48,7 @@ export const burst = (...a) => impl.burst(...a);
 export const hitStop = (...a) => impl.hitStop(...a);
 export const sfx = (...a) => impl.sfx(...a);
 export const spawnCastFX = (...a) => impl.spawnCastFX(...a);
+export const spawnBolts = (...a) => impl.spawnBolts(...a);
 export const castCallout = (...a) => impl.castCallout(...a);
 export const spawnBeams = (...a) => impl.spawnBeams(...a);
 export const openModal = (...a) => impl.openModal(...a);

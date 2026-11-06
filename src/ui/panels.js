@@ -7,8 +7,9 @@ import { refresh } from './hud.js';
 import { openModal, closeModal } from './modal.js';
 import { G, S } from '../game/state.js';
 import { calcStats } from '../game/stats.js';
-import { buildSkills, isAuxKind, canLink, STARS } from '../game/skills.js';
-import { merState, onNode, setLink, auxTakenBy } from '../game/meridian.js';
+import { buildSkills, STARS } from '../game/skills.js';
+import { merState, onNode, setLink, linkCandidates } from '../game/meridian.js';
+import { RUNE_MAX } from '../data/runes.js';
 import { MER } from '../data/meridian.js';
 import { XING, COL } from '../data/elements.js';
 import { RAR_COL, GNAME } from '../data/rarity.js';
@@ -112,37 +113,45 @@ export function showDex(){
 export function pickLink(mainIdx){
   const sk=buildSkills();
   const main=sk[mainIdx];
-  if(!main||!canLink(main.kind)) return;
-  let html='<h3>「'+main.name+'」挂辅助</h3>'+
-    '<p class="tip">挂上的辅助技会随这一招同步施放（六成强度，不占回合），并给主技加威力：辅助每级 +6%。<br>'+
-    '一个辅助星位只能挂一个主技。</p>'+
+  if(!main||main.kind!=='spell') return;
+
+  const cands=linkCandidates(mainIdx);
+  const cnt=cands.filter(c=>c.current).length;
+
+  let html='<h3>「'+main.name+'」挂符</h3>'+
+    '<p class="tip">符不自己打人，它改这一式的<b>形状</b>：多发、加重、拐弯、穿透、命中留东西。<br>'+
+    '一式最多挂 <b>'+RUNE_MAX+'</b> 道；一道符只能挂一式。当前 <b>'+cnt+' / '+RUNE_MAX+'</b>。</p>'+
     '<div style="display:flex;flex-direction:column;gap:5px;margin:10px 0">';
+
   let any=false;
-  sk.forEach((s,j)=>{
-    if(!s||!isAuxKind(s.kind)) return;
+  cands.forEach(c=>{
     any=true;
-    const taker=auxTakenBy(j);
-    const busy=taker!=null && taker!==mainIdx;
-    const cur=G.links[mainIdx]===j;
-    html+='<button '+(busy?'disabled':'')+' onclick="setLink('+mainIdx+','+j+')" style="text-align:left">'+
-      (cur?'▣ ':'▢ ')+STARS[j]+' · '+s.name+' <b style="color:#8a5a1f">Lv'+s.lv+'</b>　'+
-      (busy? '<span style="color:var(--cin)">已挂于'+STARS[taker]+'</span>' : '<span style="color:var(--ink2)">'+s.desc+'</span>')+
+    const busy=c.takenBy!=null;
+    const full=!c.current && cnt>=RUNE_MAX;
+    const dis=busy||full;
+    html+='<button '+(dis?'disabled':'')+' onclick="setLink('+mainIdx+','+c.idx+')" style="text-align:left">'+
+      (c.current?'▣ ':'▢ ')+c.star+' · '+c.rune.n+
+      ' <b style="color:'+c.rune.col+'">Lv'+c.lv+'</b>'+
+      ' <span style="color:var(--ink2);font-size:10px">['+c.rune.tag+']</span>　'+
+      (busy? '<span style="color:var(--cin)">已挂于'+STARS[c.takenBy]+'</span>'
+           : full? '<span style="color:var(--cin)">这一式已满</span>'
+           : '<span style="color:var(--ink2)">'+c.rune.d+'</span>')+
       '</button>';
   });
-  if(!any) html+='<div class="sub2">这一套里没有辅助技（治疗／护盾／蓄势）。换换装备，或者把某件卸了重配。</div>';
+  if(!any) html+='<div class="sub2">这一套里没有符位。符由天/人、人/地 两对关系推出来 —— 把相生的两位凑齐，才有符。</div>';
+
   html+='</div><div class="row">'+
-    (G.links[mainIdx]!=null? '<button onclick="setLink('+mainIdx+',null)">拆链</button>':'')+
+    (cnt? '<button onclick="setLink('+mainIdx+',null)">拆尽</button>':'')+
     '<button onclick="closeModal()">关上</button></div>';
   modalEl().innerHTML=html;
   maskEl().classList.add('on');
 }
 
-
 export function showHelp(){
   modalEl().innerHTML=
     '<h3>怎么玩</h3>'+
     '<p><b>1. 配</b>：三件装备分天、人、地。相邻两件「相生」×2，「相克」×¼。</p>'+
-    '<p><b>2. 出招</b>：七星里的七个技能，全部由你的三才组合推导出来——三件各生一个本源技，两对关系各生一个合击技，整体结构生一个阵技，缺的两行生一个劫技。</p>'+
+    '<p><b>2. 出招</b>：七星全部由三才推导——<b>1-3 位</b>是三件各出一式<b>本源法术</b>（自己五行为体、下一位五行为性，交叉推演）；<b>4-5 位</b>是两道<b>符</b>（由两对关系推出来）；<b>6 位</b>阵技，<b>7 位</b>劫技。点法术出招，符不能单独放。</p>'+
     '<p><b>3. 打</b>：点技能出招，敌人会一起还手。打空一波，下一波更多、更硬。</p>'+
     '<p><b>4. 掉宝</b>：打赢一波落两件（两成几率多一件）。掉率是陡的：<b>凡品 58%</b> → <b>灵品 26%</b> → <b>宝品 11%</b> → <b>仙品 4%</b> → <b>道品 1%</b>。波数越深、难度越高，好货越多。落宝浮层会一直挂着，点开就能看。<br>'+
     '　<b>每过五波，天地掉下三样东西，只能拿一样</b>：天赐宝光（一件宝品／仙品的蒙尘之器）、器魂、灵石、经脉点、地火余温（白提一档词条），或者古器名录（直接识得一件没见过的器）。</p>'+
@@ -152,7 +161,7 @@ export function showHelp(){
     '<p><b>8. 铭 / 灵 / 咒</b>：宝品起必带一条<b style="color:#a8811f">铭文</b>——很猛，但有代价，逼你取舍。仙品起多一条<b style="color:#7a4a8a">器灵</b>，它不讲数值，直接改规则。道品必带一条<b style="color:#a83b2c">凶咒</b>，摘不掉。</p>'+
     '<p><b>9. 底子</b>：五行决定词条倾向——金主锐（攻击／破防）、木主生（气血／噬血）、水主柔（法攻／减伤）、火主烈（攻击／暴伤）、土主厚（防御／反伤）。想要什么词条，先去找对应五行的底子。</p>'+
     '<p><b>10. 技阶</b>：稀有后缀「技阶」涨技能等级；本源技看自己那件装备，合击技取两边均值，阵技／劫技取三件均值。技能上限 <b>Lv7</b>，每级威力 +18%。</p>'+
-    '<p><b>11. 链</b>：主动技可以挂一个辅助技（治疗／护盾／蓄势）。出招时辅助随招同步施放（六成强度，不占回合），并按等级给主技加威力（每级 +6%）。一个辅助只能挂一个主技。</p>'+
+    '<p><b>11. 符</b>：一式法术最多挂 <b>2</b> 道符，一道符只能挂一式。符改的是<b>形状</b>而不是纯数值：分光符 +1 发、烈阳符 +45% 威力、追魂符改追踪、贯日符 +2 穿透、分魂符命中分裂。发数越多单发越薄（总伤 ∝ 发数^0.45），所以"多"和"重"是两条路。</p>'+
     '<p><b>12. 经脉</b>：破阵涨修为，满一级升境界、得 1 点经脉点。点顶部「经脉」开图，从「会阴」起手，任督上行入百会，两臂由膻中分出，下肢一路到涌泉。十二穴给的是永久属性；已通的穴还能再点一次「大成」，效果 ×1.8。</p>'+
     '<p><b>13. 拾遗录</b>：五行 × 六器 = 30 格图鉴。鉴出一件新器就记一笔，每集齐 5 器得 1 点经脉点。</p>'+
     '<p class="tip">三才决定「能打出多少倍」，词条决定「这一倍里有多少料」。<br>'+
