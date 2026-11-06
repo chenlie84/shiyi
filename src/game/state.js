@@ -12,9 +12,10 @@ import { seed, unseed } from '../core/rng.js';
 
 /** 一局的状态 */
 export const G = {
-  wave: 1,
+  floor: 1,       // 第几层地宫
+  room: 1,        // 层内第几间，1..6 为丹房，7 为妖王殿
   turn: 1,
-  best: 0,
+  best: 0,        // 最深到过第几层
   stones: 0,
   diff: 1,
   bag: [],
@@ -68,7 +69,8 @@ export const S = {
 
 /** 开局重置（不含开局装备的生成，那属于 game/session） */
 export function resetState() {
-  G.wave = 1;
+  G.floor = 1;
+  G.room = 1;
   G.turn = 1;
   G.stones = 0;
   G.bag = [];

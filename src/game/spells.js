@@ -37,9 +37,12 @@ export function deriveSpell(main, sub) {
   const cross = crossOf(main, sub);
   const cr = CROSS[cross];
   const tr = SUB_TRAIT[sub] || SUB_TRAIT.木;
+  const rec = (SPELL_NAME[main] || {})[sub] || {};
 
   return {
-    name: (SPELL_NAME[main] || {})[sub] || body.body,
+    name: rec.n || body.body,
+    lore: rec.lore || '',
+    desc: rec.d || '',
     body: body.body,
     elem: main,
     sub,
@@ -53,6 +56,7 @@ export function deriveSpell(main, sub) {
     size: body.size,
     trait: tr.k,
     traitN: tr.n,
+    traitD: tr.d,
     note: cr.d,
   };
 }

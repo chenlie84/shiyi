@@ -9,7 +9,7 @@
 import { $, modalEl } from './dom.js';
 import { refresh } from './hud.js';
 import { showItem, showForge, openModal, closeModal } from './modal.js';
-import { showMeridian, showDex, pickLink, showHelp } from './panels.js';
+import { showMeridian, showDex, pickLink, showHelp, showSpell } from './panels.js';
 import { takeRelic } from './relic-panel.js';
 import { log } from './log.js';
 import { G, S } from '../game/state.js';
@@ -66,7 +66,7 @@ function uiEquip(id) {
 function setDiff() {
   G.diff = parseFloat($('diff').value);
   if (S.mobs.length && !G.over) {
-    const w = makeWave(G.wave);
+    const w = makeWave();
     S.mobs.forEach((m, i) => {
       if (w[i]) {
         m.maxhp = w[i].maxhp;
@@ -87,6 +87,7 @@ export function installActions() {
     showMeridian,
     showDex,
     showHelp,
+    showSpell,
     closeModal,
     pickLink,
     setLink,

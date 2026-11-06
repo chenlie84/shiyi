@@ -23,7 +23,7 @@ export function showRelicPick(after) {
 
   let html =
     '<h3>拾　遗</h3>' +
-    '<p class="sub2">第 ' + (G.wave - 1) + ' 波既破，天地间掉下三样东西。只能拿一样。</p>' +
+    '<p class="sub2">此处既清，天地间掉下三样东西。只能拿一样。</p>' +
     '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px">';
 
   choices.forEach((r, i) => {

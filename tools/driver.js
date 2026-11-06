@@ -13,6 +13,7 @@ import { G, S } from '../src/game/state.js';
 import { calcStats } from '../src/game/stats.js';
 import { buildSkills, skillPower, resolve, toggleLink } from '../src/game/skills.js';
 import { resetAll } from '../src/game/session.js';
+import { prog } from '../src/game/dungeon.js';
 import { castSkill } from '../src/game/combat.js';
 import { autoEquip } from '../src/game/equip.js';
 import { identify, salvage, forge, quenchCost, IDENT_COST, CAST_COST } from '../src/game/economy.js';
@@ -145,11 +146,11 @@ export function play({ diff, policy, maxWave = 60 }) {
 
   while (guard++ < 40000) {
     if (G.over) break;
-    if (G.wave > maxWave) break;
+    if (prog() > maxWave) break;
 
     // 进新的一波：打理装备
-    if (G.wave !== seen) {
-      seen = G.wave;
+    if (prog() !== seen) {
+      seen = prog();
       stall = 0;
       lastHp = 1e18;
       manage(policy);
@@ -183,7 +184,7 @@ export function play({ diff, policy, maxWave = 60 }) {
 
   const st = calcStats();
   return {
-    wave: G.over || stuck ? G.wave : maxWave,
+    wave: G.over || stuck ? prog() : maxWave,
     turn: G.turn,
     best: G.best,
     stuck,

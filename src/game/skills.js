@@ -72,9 +72,11 @@ export function buildSkills() {
       sub: t.sub,
       cross: t.cross,
       crossN: t.crossN,
-      desc: t.desc || (t.note + ' · 命中' + t.traitN),
+      desc: t.desc || t.note + ' · 命中' + t.traitN,
+      lore: t.lore,
       note: t.note,
       traitN: t.traitN,
+      traitD: t.traitD,
       grade: effGrade(it),
       from: '本源',
       item: it,
@@ -130,6 +132,7 @@ export function buildSkills() {
       from: '阵',
       lv: avg,
       desc: tpl.d,
+      lore: tpl.lore,
       selfHurt: tpl.selfHurt || 0,
       spell: { ...tpl, elem: b.x, trait: null, traitN: '', name: tpl.n },
     });
@@ -148,6 +151,7 @@ export function buildSkills() {
       miss: miss.length,
       lv: clampLv(avg + (miss.length === 0 ? 1 : 0)),
       desc: j.d,
+      lore: j.lore,
       spell: { ...j, elem: miss[0] || a.x, trait: null, traitN: '', name: '' },
     });
   } else {

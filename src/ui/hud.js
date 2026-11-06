@@ -14,16 +14,36 @@ import {
   skillPower, pruneLinks, STARS as SK_STARS,
 } from '../game/skills.js';
 import { IDENT_COST } from '../game/economy.js';
+import { roomName, isBossRoom, toBoss } from '../game/dungeon.js';
+import { ROOMS, BOSS_ROOM } from '../data/dungeon.js';
 import { MULT, COL } from '../data/elements.js';
+import { PATH_N } from '../data/spells.js';
 import { RAR_COL, RAR_NAME } from '../data/rarity.js';
 
 export function refresh(){
   const st=calcStats();
   const e=st.e;
 
-  $('wave').textContent=G.wave;
+  $('floor').textContent=G.floor;
   $('turn').textContent=G.turn;
   $('best').textContent=G.best;
+  $('roomname').textContent=roomName();
+  // 一层的路线图：走过的填实，当前这一间红着，妖王殿是菱形
+  (()=>{
+    const rb=$('rooms');
+    if(!rb) return;
+    let h='';
+    for(let i=1;i<=BOSS_ROOM;i++){
+      let cls = i===BOSS_ROOM? 'boss' : 'tb';
+      if(i<G.room) cls+=' cl';
+      if(i===G.room) cls+=' cur';
+      h+='<i class="'+cls+'"></i>';
+    }
+    rb.innerHTML=h;
+    rb.title = isBossRoom()
+      ? '妖王殿 —— 这一层就剩它了'
+      : '一层 '+ROOMS+' 间丹房，还差 '+toBoss()+' 间到妖王殿';
+  })();
   $('stones').textContent=G.stones;
   $('soul').textContent=G.soul;
   $('dexn').textContent=Object.keys(G.dex).length;
@@ -102,7 +122,6 @@ export function refresh(){
   // 配装一变，星位对应的技能就换了，顺手清掉失效的符
   pruneLinks(sk);
 
-  const PATH_N={line:'直线',arc:'抛射',zigzag:'折线',homing:'追踪',orbit:'环流',skyfall:'天降'};
   const stars=['★','★★','★★★','★★★★','★★★★★','★★★★★★','★★★★★★★'];
   if(!sk.some(x=>x)){
     skBox.innerHTML='<div style="grid-column:1/3;text-align:center;color:var(--ink2);font-size:11.5px;padding:12px 0">'+
@@ -136,11 +155,13 @@ export function refresh(){
       (cnt? '符 '+cnt+'/2 ▸ '+spec.tags.join('·') : '<span style="color:#8a5a1f">＋ 挂符（0/2）</span>')+'</div>';
     d.innerHTML='<div class="nm"><span>'+s.name+' <span class="lv">Lv'+s.lv+'</span></span>'+
       '<span class="star">'+stars[i]+'</span></div>'+
-      '<div class="ds">'+s.pos+' · '+s.from+' · '+(s.elem||'')+(s.crossN? ' · '+s.crossN:'')+'</div>'+
+      '<div class="ds">'+s.pos+' · '+s.from+' · '+(s.elem||'')+(s.crossN? ' · '+s.crossN:'')+
+        '<span class="xq" onclick="event.stopPropagation();showSpell('+i+')">详</span></div>'+
       '<div class="ds">'+shot+'</div>'+
       '<div class="pw">约 '+pw+' 点'+(cnt?'<span style="color:#8a5a1f;font-weight:400">（含符）</span>':'')+'</div>'+
       linkRow;
     d.onclick=()=>castSkill(i);
+    d.title=(s.lore? s.lore+'　' : '')+(s.desc||'');
     skBox.appendChild(d);
   });
 

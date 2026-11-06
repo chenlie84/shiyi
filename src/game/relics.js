@@ -5,6 +5,7 @@
  */
 
 import { G } from './state.js';
+import { prog } from './dungeon.js';
 import { rand } from '../core/rng.js';
 import { log, refresh } from '../render/presenter.js';
 import { makeItem, reTier, afDef } from './item.js';
@@ -34,7 +35,7 @@ export function applyRelic(r) {
   let text = '';
 
   if (r.k === 'item') {
-    const it = makeItem(G.wave, false, rand() < 0.3 ? 4 : 3);
+    const it = makeItem(prog(), false, rand() < 0.3 ? 4 : 3);
     G.bag.push(it);
     text = '宝光落地：' + RAR_NAME[it.grade] + '，器身蒙尘。';
     log(text, '#a8811f');
@@ -88,13 +89,13 @@ export function applyRelic(r) {
       const idx = ITEM_NAMES[m.x].indexOf(m.nm);
       let it = null;
       for (let t = 0; t < 60; t++) {
-        const c = makeItem(G.wave, false, Math.min(5, Math.max(3, Math.round(idx / 1.2) + 2)));
+        const c = makeItem(prog(), false, Math.min(5, Math.max(3, Math.round(idx / 1.2) + 2)));
         if (c.base === m.nm) {
           it = c;
           break;
         }
       }
-      if (!it) it = makeItem(G.wave, false, 4);
+      if (!it) it = makeItem(prog(), false, 4);
       it.base = m.nm;
       it.name = m.nm + (it.broken ? '·残' : '') + '·' + it.y + it.x;
       it.ident = true;

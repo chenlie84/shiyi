@@ -7,9 +7,10 @@ import { refresh } from './hud.js';
 import { openModal, closeModal } from './modal.js';
 import { G, S } from '../game/state.js';
 import { calcStats } from '../game/stats.js';
-import { buildSkills, STARS } from '../game/skills.js';
+import { buildSkills, STARS, resolve, skillPower, linkCount } from '../game/skills.js';
 import { merState, onNode, setLink, linkCandidates } from '../game/meridian.js';
 import { RUNE_MAX } from '../data/runes.js';
+import { PATH_N } from '../data/spells.js';
 import { MER } from '../data/meridian.js';
 import { XING, COL } from '../data/elements.js';
 import { RAR_COL, GNAME } from '../data/rarity.js';
@@ -101,7 +102,7 @@ export function showDex(){
       html+='<div class="dexcell'+(d?' got':'')+'" '+(d?'style="border-color:'+RAR_COL[d.rar]+'"':'')+'>'+
         (d? nm : '？')+
         '<div style="font-size:8.5px;font-weight:400;color:'+(d?RAR_COL[d.rar]:'var(--ink2)')+'">'+
-        (d? GNAME[d.rar]+' · 波'+d.wave : '未识')+'</div></div>';
+        (d? GNAME[d.rar]+' · '+(d.floor||1)+'层' : '未识')+'</div></div>';
     });
     html+='</div>';
   });
@@ -147,14 +148,82 @@ export function pickLink(mainIdx){
   maskEl().classList.add('on');
 }
 
+/* ---------- 法术详情 ---------- */
+
+/**
+ * 一式法术的来龙去脉
+ * 名 → 体/性/势三层推演 → 出手数值 → 性效与已挂的符 → 典故与解说
+ */
+export function showSpell(idx){
+  const sk=buildSkills();
+  const s=sk[idx];
+  if(!s) return;
+
+  if(s.kind==='rune'){
+    modalEl().innerHTML='<h3>「'+s.name+'」</h3>'+
+      '<p class="sub2">'+s.pos+' · '+s.from+' · 符 Lv'+s.lv+'</p>'+
+      '<p>'+s.desc+'</p>'+
+      '<p class="tip">符不能单独施放。点一件法术卡片上的「挂符」，把它挂上去改造那一式。</p>'+
+      '<div class="row"><button onclick="closeModal()">关上</button></div>';
+    maskEl().classList.add('on');
+    return;
+  }
+
+  const st=calcStats();
+  const spec=resolve(s,sk);
+  const pw=skillPower(s,spec,st.s,st.e);
+  const per=Math.round(pw*spec.perShot);
+  const cnt=linkCount(idx);
+  const el=s.elem||'';
+  const traitD=(s.spell&&s.spell.traitD)||'';
+
+  const row=(k,v)=>'<div class="sprow"><span>'+k+'</span><b>'+v+'</b></div>';
+
+  let html='<h3>'+s.name+'</h3>'+
+    '<p class="sub2">'+s.pos+' · '+s.from+' · Lv'+s.lv+
+      (s.crossN? ' · '+el+'·'+s.crossN : '')+
+      '　<span style="color:'+COL[el]+';font-weight:700">'+el+' 行</span></p>';
+
+  /* 三层推演 */
+  html+='<div class="spgrid">'+
+    '<div><i>体</i><b>'+(s.spell.body||'—')+'</b><em>主行 '+el+'</em></div>'+
+    '<div><i>性</i><b>'+(s.traitN||'—')+'</b><em>副行 '+(s.sub||'—')+'</em></div>'+
+    '<div><i>势</i><b>'+(s.crossN||'—')+'</b><em>'+(s.note||'')+'</em></div>'+
+    '</div>';
+
+  /* 出手数值 */
+  html+=row('威力', '约 <span style="color:var(--cin)">'+pw+'</span> 点　单发 '+per);
+  html+=row('发数', spec.proj+' 发　'+PATH_N[spec.path]+
+    (spec.pierce? '　穿 '+spec.pierce : '')+'　弹幅 '+spec.size.toFixed(2));
+  if(spec.tags.length) html+=row('已挂符', spec.tags.join('　'));
+  html+=row('性效', traitD? traitD : (s.traitN? '命中留「'+s.traitN+'」' : '无'));
+  if(spec.selfHurt) html+=row('反噬', '每次出手自损 '+(spec.selfHurt*100).toFixed(0)+'% 威力');
+  if(spec.onCastHeal) html+=row('回春', '出手回血 '+(spec.onCastHeal*100).toFixed(0)+'% 威力');
+  if(spec.onCastShield) html+=row('护身', '出手得盾 '+(spec.onCastShield*100).toFixed(0)+'% 威力');
+
+  /* 典故 */
+  if(s.lore) html+='<p class="splore">'+s.lore+'</p>';
+  html+='<p>'+s.desc+'</p>';
+
+  html+='<div class="row">'+
+    (cnt<2? '<button onclick="closeModal();pickLink('+idx+')">挂符</button>':'')+
+    '<button onclick="closeModal()">关上</button></div>';
+  modalEl().innerHTML=html;
+  maskEl().classList.add('on');
+}
+
 export function showHelp(){
   modalEl().innerHTML=
     '<h3>怎么玩</h3>'+
     '<p><b>1. 配</b>：三件装备分天、人、地。相邻两件「相生」×2，「相克」×¼。</p>'+
     '<p><b>2. 出招</b>：七星全部由三才推导——<b>1-3 位</b>是三件各出一式<b>本源法术</b>（自己五行为体、下一位五行为性，交叉推演）；<b>4-5 位</b>是两道<b>符</b>（由两对关系推出来）；<b>6 位</b>阵技，<b>7 位</b>劫技。点法术出招，符不能单独放。</p>'+
-    '<p><b>3. 打</b>：点技能出招，敌人会一起还手。打空一波，下一波更多、更硬。</p>'+
-    '<p><b>4. 掉宝</b>：打赢一波落两件（两成几率多一件）。掉率是陡的：<b>凡品 58%</b> → <b>灵品 26%</b> → <b>宝品 11%</b> → <b>仙品 4%</b> → <b>道品 1%</b>。波数越深、难度越高，好货越多。落宝浮层会一直挂着，点开就能看。<br>'+
-    '　<b>每过五波，天地掉下三样东西，只能拿一样</b>：天赐宝光（一件宝品／仙品的蒙尘之器）、器魂、灵石、经脉点、地火余温（白提一档词条），或者古器名录（直接识得一件没见过的器）。</p>'+
+    '<p><b>3. 走</b>：一层是 <b>六间丹房 + 一座妖王殿</b>。清一间往前推一间，越往里越挤'
+      '（第 1 间 2 只，第 4 间起 3 只，末尾两间 4 只）；妖王殿只有一只，但它<b>减伤两成多、每回合自愈</b>'
+      '——打不动就是输出不够，回去熔炉补词条。妖王伏诛才下到更深一层，从第一间重新走。'
+      '点技能出招，敌人会一起还手。</p>'+
+    '<p><b>4. 掉宝</b>：寻常房间落两件（两成多一件）。掉率是陡的：<b>凡品 58%</b> → <b>灵品 26%</b> → <b>宝品 11%</b> → <b>仙品 4%</b> → <b>道品 1%</b>。层越深、难度越高，好货越多。落宝浮层会一直挂着，点开就能看。<br>'+
+    '　<b>妖王必掉好东西</b>：一件仙品、一件宝品起，且都不残；另加器魂 12，灵石按 2.5 倍算。<br>'+
+    '　<b>每过三间，以及每次妖王伏诛</b>，天地掉下三样东西，只能拿一样：天赐宝光（一件宝品／仙品的蒙尘之器）、器魂、灵石、经脉点、地火余温（白提一档词条），或者古器名录（直接识得一件没见过的器）。</p>'+
     '<p><b>5. 鉴</b>：<b style="color:#a8811f">宝品以上捡到手是蒙尘的</b>，看不见名字、五行和词条，也吃不到属性。花 20 灵石「鉴」，才知道你捡到的到底是什么。</p>'+
     '<p><b>6. 品级</b>：词条数量随品级走（凡 0～2 条，道品 6 条）。词条分<b>前缀</b>（气血／攻击／法攻／防御，加数值，最多 3 条）与<b>后缀</b>（暴击／暴伤／增伤／减伤／噬血／反伤／破防／连击，按百分比，最多 3 条），合计 6 条上限。T1 最强、T5 最弱。</p>'+
     '<p><b>7. 熔炉</b>：<b>铸</b>（25 灵石，随机生一条，赌 T）／<b>淬</b>（20～80 灵石 + 2～8 器魂，你自己挑一条提一档，必定成）／<b>引</b>（70 灵石 + 10 器魂，定向指定词条，固定 T3）。<b style="color:#7a4a8a">器魂</b>靠拆解不要的装备来，越拆越会打。</p>'+

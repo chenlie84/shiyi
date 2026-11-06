@@ -12,6 +12,7 @@ import { calcStats, xpNeed } from './stats.js';
 import { makeItem, nmOf } from './item.js';
 import { buildSkills, skillPower, resolve } from './skills.js';
 import { makeWave, layoutMobs, alive } from './waves.js';
+import { isBossRoom, prog, advanceRoom, enterDungeon, where, roomHint } from './dungeon.js';
 import { registerDex } from './dex.js';
 import { rand, chancePct } from '../core/rng.js';
 import { GROUND, PLAYER_X } from '../config.js';
@@ -24,9 +25,9 @@ import {
 const SHOT_GAP = 95; // 每发之间的间隔（毫秒）
 const SHOT_LAG = 150; // 第一发飞行的余量
 
-/** 开一波 */
+/** 进这一间 */
 export function startWave() {
-  S.mobs = makeWave(G.wave);
+  S.mobs = makeWave();
   layoutMobs();
   G.turn = 1;
   G.busy = false;
@@ -38,7 +39,14 @@ export function startWave() {
   S.buffNext = 0;
   S.reflect = 0;
 
-  log('第 ' + G.wave + ' 波 · 来了 ' + S.mobs.length + ' 只。', '#a83b2c');
+  const boss = isBossRoom();
+  if (boss) {
+    log(where() + ' · 「' + S.mobs[0].name + '」在前。', '#a83b2c');
+    log('　' + S.mobs[0].lore, '#7a4a8a');
+  } else {
+    log(where() + ' · 来了 ' + S.mobs.length + ' 只。', '#a83b2c');
+    log('　' + roomHint(), '#6b6154');
+  }
   refresh();
 }
 
@@ -68,6 +76,9 @@ function land(m, base, spec, q, extra = 1, label = '') {
 
   const crit = chancePct((q.crit || 0) + spec.crit);
   if (crit) dmg *= 1 + ((q.critDmg || 0) + spec.critDmg) / 100;
+
+  // 妖王皮厚：这是它"打不动"的那一半，另一半是每回合自愈
+  if (m.red) dmg *= 1 - m.red;
 
   const v = Math.max(1, Math.round(dmg));
   m.hp -= v;
@@ -315,6 +326,14 @@ export function enemyTurn() {
       return;
     }
 
+    // 妖王自愈：减伤 + 回血是一道门槛，输出不够就永远磨不掉
+    const boss = S.mobs.find((m) => m.boss && !m.dead);
+    if (boss && boss.regen > 0) {
+      const h = Math.round(boss.maxhp * boss.regen);
+      boss.hp = Math.min(boss.maxhp, boss.hp + h);
+      floatText(boss.x, boss.y - 46, '愈 ' + h, '#7a4a8a');
+    }
+
     // 器灵·不息 / 诅咒·贪：回合末结算
     const now = calcStats();
     const sp = now.q.sp;
@@ -341,24 +360,44 @@ export function enemyTurn() {
   }, alive().length * 120 + 420);
 }
 
-/** 破阵：结算掉落、修为，进下一波 */
+/**
+ * 清空这一间：结算掉落、修为，然后往前走
+ *
+ * 寻常房间推一间；妖王殿推一层 —— 妖王的东西和寻常屋子不是一个量级。
+ */
 export function winWave() {
   G.over = true;
+  const boss = isBossRoom();
+  const n = prog(); // 推进之前先记下"这一间的等效进度"
+
   sfx('win');
-  S.shake = 0.8;
-  burst(400, GROUND - 60, 40, '#c9a227');
-  floatText(320, 150, '破阵', '#ffd166', true, true);
+  S.shake = boss ? 1.3 : 0.8;
+  burst(400, GROUND - 60, boss ? 72 : 40, boss ? '#e8c06a' : '#c9a227');
+  floatText(320, 150, boss ? '妖王伏诛' : '破阵', '#ffd166', true, true);
 
   const st = calcStats();
-  S.php = Math.min(st.s.hp, S.php + Math.round(st.s.hp * 0.3));
-  G.best = Math.max(G.best, G.wave);
+  S.php = Math.min(st.s.hp, S.php + Math.round(st.s.hp * (boss ? 0.5 : 0.3)));
+  G.best = Math.max(G.best, G.floor);
 
-  const gain = Math.round((8 + G.wave * 4) * G.diff); // 难度越高，灵石给得越多
+  const gain = Math.round((8 + n * 4) * G.diff * (boss ? 2.5 : 1)); // 难度越高，灵石给得越多
   G.stones += gain;
 
-  // 落宝：稳压两件，另有几率多掉一件
-  const drops = [makeItem(G.wave), makeItem(G.wave)];
-  if (rand() < 0.22) drops.push(makeItem(G.wave));
+  /* ── 落宝 ── */
+  let drops;
+  if (boss) {
+    // 妖王必出好东西：一件仙品、一件至少宝品，且都不残
+    drops = [
+      makeItem(n, false, 4),
+      makeItem(n, false, rand() < 0.35 ? 4 : 3),
+      makeItem(n, false, rand() < 0.3 ? 3 : 2),
+      makeItem(n, false, 2),
+    ];
+    if (rand() < 0.4) drops.push(makeItem(n, false, 4));
+    G.soul += 12;
+  } else {
+    drops = [makeItem(n), makeItem(n)];
+    if (rand() < 0.22) drops.push(makeItem(n));
+  }
 
   // 未鉴的先不进拾遗录 —— 鉴出来才算「识得此器」
   drops.forEach((it) => {
@@ -368,13 +407,18 @@ export function winWave() {
 
   spawnBeams(drops); // 宝从地里冒出来
   showLoot(drops);
-  log('破阵！得 ' + drops.map((d) => nmOf(d)).join('、') + '，灵石 +' + gain, '#2f6b52');
+  log(
+    (boss ? '妖王伏诛！' : '破阵！') + '得 ' + drops.map((d) => nmOf(d)).join('、') +
+      '，灵石 +' + gain + (boss ? '　器魂 +12' : ''),
+    '#2f6b52'
+  );
 
-  const relic = G.wave % 5 === 0;
-  G.wave++;
+  /* ── 往前走 ── */
+  const step = advanceRoom();
+  if (step === 'floor') log('下到第 ' + G.floor + ' 层。', '#a8811f');
 
-  // 修为：破阵涨修为，满一级升境界、给 1 点经脉点
-  const xg = 12 + G.wave * 4;
+  // 修为：清一间涨修为，满一级升境界、给 1 点经脉点
+  const xg = Math.round((12 + n * 4) * (boss ? 2 : 1));
   G.xp += xg;
   let ups = 0;
   while (G.xp >= xpNeed(G.lv)) {
@@ -388,8 +432,8 @@ export function winWave() {
 
   refresh();
 
-  if (relic) {
-    // 每五波：三选一，让你自己挑这一口
+  // 妖王必掉三选一；寻常屋子每过三间给一次
+  if (boss || n % 3 === 0) {
     delay(() => showRelicPick(), 620);
     return;
   }
@@ -406,17 +450,18 @@ export function onDeath() {
   G.over = true;
   sfx('hurt');
   showDeath({
-    wave: G.wave,
+    floor: G.floor,
+    room: G.room,
     turn: G.turn,
     best: G.best,
   });
   refresh();
 }
 
-/** 重整旗鼓：波次归零重开，装备与灵石都留着 */
+/** 重整旗鼓：回到第一层第一间，装备与灵石都留着 */
 export function restart() {
   closeDeath();
-  G.wave = 1;
+  enterDungeon();
   startWave();
 }
 

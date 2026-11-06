@@ -10,7 +10,7 @@ import { log } from '../render/presenter.js';
 /** @returns {boolean} 是否首次识得 */
 export function registerDex(it) {
   const first = !G.dex[it.base];
-  if (first) G.dex[it.base] = { wave: G.wave, rar: it.grade };
+  if (first) G.dex[it.base] = { floor: G.floor, rar: it.grade };
   else G.dex[it.base].rar = Math.max(G.dex[it.base].rar, it.grade);
 
   if (first) {

@@ -2,7 +2,7 @@
 /**
  * 平衡回归 CLI
  *
- *   npm run sim                      # 每档 5 局，最多打到 60 波
+ *   npm run sim                      # 每档 5 局，最多打到 60 间
  *   npm run sim -- 8 60              # 每档 8 局
  *   npm run sim -- 8 60 --seed=7     # 固定种子，数字可复现
  *
@@ -53,7 +53,7 @@ const pad = (s, n) => String(s) + ' '.repeat(Math.max(1, n - wide(s)));
 const avg = (x) => x.reduce((s, r) => s + r.wave, 0) / x.length;
 const mx = (x) => Math.max(...x.map((r) => r.wave));
 
-console.log(`拾遗 · 平衡回归　每档 ${N} 局　上限 ${MAXW} 波` + (BASE ? `　种子 ${BASE}` : '　随机'));
+console.log(`拾遗 · 平衡回归　每档 ${N} 局　上限 ${MAXW} 间` + (BASE ? `　种子 ${BASE}` : '　随机'));
 console.log('');
 console.log(pad('难度', 16) + pad('裸装 均值/最高', 18) + pad('全投入 均值/最高', 18) + '末局 血/攻/减伤');
 console.log('─'.repeat(84));

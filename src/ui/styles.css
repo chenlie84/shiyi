@@ -15,6 +15,13 @@
   .logo{font-size:15px;font-weight:800;letter-spacing:4px}
   .stat{font-size:12px;color:var(--ink2)}
   .stat b{color:var(--ink)}
+  /* 一层七处：六间丹房 + 妖王殿（菱形） */
+  .rooms{display:inline-flex;gap:3px;align-items:center;vertical-align:-1px}
+  .rooms i{display:block;width:7px;height:7px;border:1px solid var(--line);background:#fffdf7}
+  .rooms i.boss{border-color:var(--cin);transform:rotate(45deg)}
+  .rooms i.cl{background:#8a5a1f;border-color:#8a5a1f}
+  .rooms i.cur{background:var(--cin);border-color:var(--cin);box-shadow:0 0 0 2px rgba(168,59,44,.16)}
+  .rooms i.boss.cl{background:#c9473a;border-color:#c9473a}
   .spacer{flex:1}
   button{font-family:inherit;font-size:12px;padding:5px 12px;border:2px solid var(--ink);background:var(--paper);color:var(--ink);cursor:pointer;letter-spacing:1px}
   button:hover{background:var(--ink);color:var(--paper)}
@@ -152,3 +159,18 @@
 .sk.rune{background:linear-gradient(160deg,#f7f1df,#efe6cd);border-style:dashed}
 .sk.rune .nm{color:#8a5a1f}
 .sk.rune .lx{cursor:default}
+/* 「详」：法术详情入口，压在卡片第二行右端 */
+.sk .xq{float:right;margin:-1px 0 0 4px;padding:0 3px;font-size:8.5px;line-height:1.35;
+  color:#8a5a1f;border:1px solid #c9b98d;background:#fffdf7;cursor:pointer;font-weight:700;letter-spacing:0}
+.sk .xq:hover{background:#8a5a1f;color:#fffdf7;border-color:#8a5a1f}
+/* 法术详情：体 / 性 / 势 三栏 */
+.spgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:10px 0}
+.spgrid>div{border:1px solid var(--line);background:var(--paper);padding:6px 8px;text-align:center}
+.spgrid i{display:block;font-style:normal;font-size:9.5px;color:var(--ink2);letter-spacing:1px}
+.spgrid b{display:block;font-size:20px;line-height:1.25;font-family:"STKaiti","KaiTi",serif;color:var(--ink)}
+.spgrid em{display:block;font-style:normal;font-size:9px;color:var(--ink2);line-height:1.4}
+.sprow{border-bottom:1px dotted var(--line);padding:3px 0;font-size:11.5px;
+  display:flex;justify-content:space-between;gap:10px}
+.sprow span{color:var(--ink2)}
+.sprow b{font-weight:700;text-align:right}
+.splore{font-size:10.5px;color:#8a5a1f;border-left:3px solid #c9b98d;padding:2px 0 2px 8px;margin:10px 0 6px}
