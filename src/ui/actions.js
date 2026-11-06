@@ -166,10 +166,20 @@ export function installActions() {
   // 点弹层外面的暗色空白 = 关上
   bindModalBackdrop();
 
-  // Esc：先关弹层，再收抽屉
+  // Esc：先关弹层，再收抽屉；数字键 1-7 直接出招（格子角上那几个号就是它）
   window.addEventListener('keydown', (e) => {
-    if (e.key !== 'Escape') return;
-    if (document.body.classList.contains('modal-on')) closeModal();
-    else togglePack(false);
+    if (e.key === 'Escape') {
+      if (document.body.classList.contains('modal-on')) closeModal();
+      else togglePack(false);
+      return;
+    }
+    const b = document.body.classList;
+    if (b.contains('modal-on') || b.contains('drawer-on')) return;
+    const t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA')) return;
+    if (e.key >= '1' && e.key <= '7') {
+      e.preventDefault();
+      castSkill(+e.key - 1);
+    }
   });
 }

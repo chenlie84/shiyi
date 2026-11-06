@@ -19,6 +19,7 @@ import { ROOMS, BOSS_ROOM } from '../data/dungeon.js';
 import { MULT, COL } from '../data/elements.js';
 import { PATH_N } from '../data/spells.js';
 import { RAR_COL, RAR_NAME } from '../data/rarity.js';
+import { renderSkillBar } from './skillbar.js';
 
 /** 今天的日子：公历 + 星期。界面上得有个"现在是哪天"的锚 */
 export function dateText(d){
@@ -172,6 +173,9 @@ export function refresh(){
     d.title=(s.lore? s.lore+'　' : '')+(s.desc||'');
     skBox.appendChild(d);
   });
+
+  // 底部快捷栏：和七星同源，只是缩成格子
+  renderSkillBar(sk, st, e);
 
   // 行囊：先按"要不要动手"排 —— 待鉴的顶到前面，再按品级、词条强弱
   const bag=$('bag'); bag.innerHTML='';
