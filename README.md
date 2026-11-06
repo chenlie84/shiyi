@@ -1,0 +1,142 @@
+# 拾遗 · 试炼台
+
+> 五行阴阳三才配装 × 掉宝鉴定 × 熔炉打造 × 回合制修仙 Roguelite
+
+一个纯前端、无构建依赖的小游戏原型，现在按大型项目的骨架重搭过一遍：
+数据、逻辑、渲染、界面四层单向依赖，逻辑层可以在 node 里裸跑。
+
+---
+
+## 快速开始
+
+```bash
+npm install
+npm run dev        # http://127.0.0.1:5173
+npm run build      # 产出单文件 dist/index.html（双击可玩）
+```
+
+URL 参数：
+
+| 参数 | 作用 |
+| --- | --- |
+| `?nohelp` | 跳过开场说明 |
+| `?auto` | 自动出招 + 自动配装（跑平衡、录屏用） |
+| `?seed=123` | 固定随机种子，复现同一局 |
+
+## 命令
+
+```bash
+npm run check      # 结构自检：语法 / 断链 / 循环依赖 / 分层越界 / 孤儿导出
+npm run sim        # 无头平衡回归：5 难度 × 裸装·全投入，各 5 局
+npm run sim:seed   # 同上但固定种子，数字可复现（改完数值前后对比用）
+npm run verify     # check + sim，提交前跑这个
+```
+
+`npm run check` 的规矩是**可执行的**，不是文档里的口号：往 `src/data/` 里写一句
+`import ... from '../game/stats.js'` 会直接红字报错、退出码 1。
+
+## 目录
+
+```
+shiyi/
+├─ index.html            外壳：只放 DOM 骨架和 <script type="module">
+├─ vite.config.js        打包成单文件（vite-plugin-singlefile）
+├─ jsconfig.json         编辑器的 JSDoc 类型提示
+├─ src/
+│  ├─ main.js            入口：装画布、接表现层、开循环。不含任何玩法规则
+│  ├─ config.js          画布尺寸、地面高度、站位等全局常量
+│  ├─ core/              零依赖工具
+│  │   ├─ rng.js         随机源（默认 Math.random，可切可复现 LCG）
+│  │   └─ math.js        clamp / lerp / 缓动
+│  ├─ data/              纯数据表，只 export const，不许 import 逻辑
+│  │   ├─ elements.js    五行、生克、阴阳、倍率
+│  │   ├─ affixes.js     PoE 式前后缀表（键 / 名称 / T1-T5 数值）
+│  │   ├─ rarity.js      品阶名、颜色、词条数、是否需鉴定
+│  │   ├─ items.js       古器名库（按五行分）
+│  │   ├─ inscriptions.js 铭文 / 器灵 / 凶咒
+│  │   ├─ meridian.js    十二经脉穴位表
+│  │   ├─ skills.js      五行招式、辅助招式、技能等级上限
+│  │   ├─ mobs.js        敌种表
+│  │   └─ relics.js      拾遗三选一的卡池
+│  ├─ game/              逻辑层：只算数，不画不写 DOM
+│  │   ├─ state.js       G（一局档案，可存档）/ S（每帧舞台状态，不存档）
+│  │   ├─ session.js     开局：发六件已鉴器、保证有成阵
+│  │   ├─ waves.js       建波、摆位
+│  │   ├─ combat.js      回合制：出招 → 敌人还手 → 回合结算
+│  │   ├─ stats.js       三才结算 → 最终属性
+│  │   ├─ item.js        掉落生成、词条填充、品阶
+│  │   ├─ skills.js      七星技能树构建、链接、威力
+│  │   ├─ equip.js       配装、自动配装、一键最优
+│  │   ├─ economy.js     鉴定 / 拆解 / 熔炉三档
+│  │   ├─ relics.js      拾遗抽取与结算
+│  │   ├─ meridian.js    经脉点亮与连招
+│  │   └─ dex.js         拾遗录登记
+│  ├─ render/            表现层：读 game 状态，写 canvas
+│  │   ├─ canvas.js      画布与缩放
+│  │   ├─ scene.js       主循环 update / render
+│  │   ├─ presenter.js   ★ 依赖倒置接口：game 只认这组函数名
+│  │   ├─ palette.js     配色
+│  │   ├─ sfx.js         WebAudio 现场合成音效
+│  │   ├─ draw/          background / hero / mob / hud
+│  │   └─ fx/            beams（掉宝光柱）/ cast（十二种招式特效）/ callout（毛笔题字）/ particles
+│  ├─ ui/                DOM 层：面板、弹层、按钮
+│  └─ platform/          浏览器适配：URL 参数、可注入定时器
+├─ tools/                不进包，只在开发期跑
+│  ├─ check.js           结构自检
+│  ├─ harness.js         无头测试台（同步定时器 + UI 钩子）
+│  ├─ driver.js          替玩家做决策（裸装 / 全投入两种策略）
+│  └─ sim.js             平衡回归 CLI
+├─ docs/                 架构、约定、版本日志
+└─ legacy/               历史单文件版本（v0.1 → v0.6），只读存档
+```
+
+## 四层结构与一票否决线
+
+```
+        ui  ──────────────►  render  ──────►  canvas
+         │                      │
+         │                      ▼
+         └──────────────►  game  ──►  presenter（接口）
+                               │
+                    ┌──────────┴──────────┐
+                    ▼                     ▼
+                  data                   core
+```
+
+- **game 不知道 DOM 存在**。要说话就调 `render/presenter.js` 里的函数名，
+  真实实现由 `main.js` 在启动时注入。于是 `tools/sim.js` 什么都不用桩，直接跑。
+- **data 只有表**。往里塞逻辑的那天，就是这张表开始腐烂的那天。
+- **ui 可以调一切**，但没人可以调 ui（除了 `main.js`）。
+- **game 不许 import `render/*` 里除 `presenter.js` 之外的任何文件** —— 这条由 `npm run check` 守着。
+
+细节与扩展示例见 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)，
+命名与写法见 [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md)，
+版本脉络见 [`docs/CHANGELOG.md`](docs/CHANGELOG.md)。
+
+## 玩法一句话
+
+七件器分天 / 人 / 地三位，三位之间按**生 ×2、克 ×¼、阴阳济 ×½**连乘成阵；
+阵定了才有七星技能位。打怪掉宝，宝要**鉴定**才知道五行，蒙尘时佩不进三才；
+熔炉三档 —— 铸（随机生词条）、淬（指定词条提一档）、引（定向引一条），
+词条上限六条（前三后三）。每五波来一次「拾遗」三选一。
+
+## 现状
+
+- 战斗 / 掉落 / 打造 / 经脉 / 拾遗 / 拾遗录 全链路可玩
+- 十二种招式特效 + 毛笔题字 + 掉宝光柱 + 打击停顿
+- 平衡回归基线（`npm run sim:seed`，上限 60 波）：
+
+| 难度 | 裸装 | 全投入 |
+| --- | --- | --- |
+| 练气·易 | ~17 | ~37 |
+| 筑基·常 | ~11 | ~36 |
+| 金丹·难 | ~8 | ~12 |
+| 元婴·苦 | ~7 | ~8 |
+| 化神·死 | ~5 | ~7 |
+
+## 下一步
+
+1. 存档：`G` 已经是纯数据，序列化 + `localStorage` 即可，`SAVE_KEY` 已备好
+2. 美术替换：现在是程序化像素，`render/draw/*` 是唯一需要动的地方
+3. 音效换成采样：`render/sfx.js` 换实现，调用方不用改
+4. 更多流派：加数据表即可，`data/skills.js` + `data/relics.js` 是主要入口

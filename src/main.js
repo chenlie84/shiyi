@@ -1,0 +1,99 @@
+/**
+ * 拾遗 · 试炼台 —— 入口
+ *
+ * 这里只做三件事：拿画布、把各层接到一起、开跑。
+ * 任何玩法规则都不该写在这个文件里。
+ */
+
+import './ui/styles.css';
+
+import { initCanvas } from './render/canvas.js';
+import { bindPresenter } from './render/presenter.js';
+import { loop } from './render/scene.js';
+import { sfx } from './render/sfx.js';
+import { floatText, burst } from './render/fx/particles.js';
+import { spawnCastFX } from './render/fx/cast.js';
+import { castCallout } from './render/fx/callout.js';
+import { spawnBeams } from './render/fx/beams.js';
+
+import { G, S } from './game/state.js';
+import { resetAll } from './game/session.js';
+import { bindCombatUI, castSkill } from './game/combat.js';
+import { buildSkills } from './game/skills.js';
+
+import { refresh } from './ui/hud.js';
+import { log } from './ui/log.js';
+import { openModal, closeModal } from './ui/modal.js';
+import { showLoot, clearLoot } from './ui/loot.js';
+import { showHelp } from './ui/panels.js';
+import { showRelicPick } from './ui/relic-panel.js';
+import { showDeath, closeDeath } from './ui/death-panel.js';
+import { installActions } from './ui/actions.js';
+
+import { readFlags, FLAGS } from './platform/flags.js';
+import { seed } from './core/rng.js';
+
+function boot() {
+  readFlags();
+  if (FLAGS.seed) seed(FLAGS.seed);
+
+  initCanvas('cv');
+
+  // 把表现层接到 game 上（game 只认这组函数名，不知道 DOM 的存在）
+  bindPresenter({
+    log,
+    refresh,
+    floatText,
+    burst,
+    hitStop: (s) => {
+      S.freeze = Math.max(S.freeze, s);
+    },
+    sfx,
+    spawnCastFX,
+    castCallout,
+    spawnBeams,
+    openModal,
+    closeModal,
+    showLoot,
+    clearLoot,
+  });
+
+  // 战斗流程里需要 UI 的两个断点：拾遗三选一、阵亡
+  bindCombatUI({ showRelicPick, showDeath, closeDeath });
+
+  installActions();
+
+  // 首屏
+  resetAll();
+  requestAnimationFrame(loop);
+
+  if (!FLAGS.nohelp) showHelp();
+
+  // ?auto —— 自动出招 / 自动配装，跑平衡用
+  if (FLAGS.auto) {
+    G.autoPick = true;
+    window.autoEquip();
+    setInterval(() => {
+      if (G.busy || G.over || !S.mobs.some((m) => !m.dead)) return;
+      // 有钱先鉴 —— 蒙尘的东西佩上了也是白佩
+      const un = G.bag.find((i) => i.ident === false);
+      if (un && G.stones >= 20) {
+        window.identify(un.id);
+        return;
+      }
+      const sk = buildSkills();
+      let pick = -1;
+      for (let i = 0; i < sk.length; i++) {
+        if (sk[i] && sk[i].kind !== 'heal' && sk[i].kind !== 'shield') {
+          pick = i;
+          break;
+        }
+      }
+      if (pick < 0) for (let i = 0; i < sk.length; i++) if (sk[i]) { pick = i; break; }
+      if (pick >= 0) castSkill(pick);
+    }, 760);
+  }
+}
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+else boot();

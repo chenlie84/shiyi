@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>拾遗 · 试炼台</title>
+<link rel="stylesheet" href="/src/ui/styles.css">
+</head>
+<body>
+<div class="app">
+
+  <!-- ── 顶栏 ───────────────────────────────────────────── -->
+  <div class="top">
+    <div class="logo">拾 遗 · 试 炼</div>
+    <div class="stat">第 <b id="wave">1</b> 波</div>
+    <div class="stat">回合 <b id="turn">1</b></div>
+    <div class="stat">最高 <b id="best">0</b></div>
+    <div class="stat">灵石 <b id="stones">0</b></div>
+    <div class="stat">器魂 <b id="soul" style="color:#7a4a8a">0</b></div>
+    <div class="stat">境界 <b id="lv">1</b> <span id="xptxt" style="font-size:10px">0/26</span></div>
+    <button data-act="meridian" style="border-color:#8a5a1f">经脉 <b id="pts" style="color:#8a5a1f">0</b></button>
+    <button data-act="dex" style="border-color:#3f7a6a">拾遗录 <b id="dexn" style="color:#3f7a6a">0</b></button>
+    <div class="spacer"></div>
+    <div class="stat">难度
+      <select id="diff" style="font-family:inherit;font-size:12px;border:1px solid var(--line);background:var(--paper);padding:2px 4px">
+        <option value="0.7">练气 · 易</option>
+        <option value="1" selected>筑基 · 常</option>
+        <option value="1.5">金丹 · 难</option>
+        <option value="2.2">元婴 · 苦</option>
+        <option value="3.2">化神 · 死</option>
+      </select>
+    </div>
+    <button data-act="help">玩法</button>
+    <button data-act="reset">重来</button>
+  </div>
+
+  <!-- ── 主战场 + 右侧面板 ──────────────────────────────── -->
+  <div class="main">
+    <div class="left">
+      <canvas id="cv" width="640" height="520"></canvas>
+      <div id="loot"></div>
+      <div class="tip" style="width:640px">点下面七星技能出招。敌人会一起还手。</div>
+    </div>
+
+    <div class="right">
+      <div class="panel">
+        <div class="ph">三才 · 天 / 人 / 地 <span class="sub2" style="letter-spacing:0">点装备看词条</span></div>
+        <div class="slots" id="slots"></div>
+        <div class="mulbox">
+          <div class="big" id="mul">×1.00</div>
+          <div class="tag" id="school" style="color:var(--ink2)">未成阵</div>
+          <div class="sub2" id="rels">—</div>
+        </div>
+        <div class="attrs" id="attrs"></div>
+      </div>
+
+      <div class="panel">
+        <div class="ph">北斗七星 · 七技</div>
+        <div class="skills" id="skills"></div>
+      </div>
+
+      <div class="panel">
+        <div class="ph">战报</div>
+        <div class="log" id="log"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 行囊 ───────────────────────────────────────────── -->
+  <div class="panel" style="margin-top:10px">
+    <div class="ph">行囊 <span class="sub2" id="bagcnt"></span>
+      <button class="sm" data-act="salvage-junk" style="border-color:#7a4a8a;color:#7a4a8a">拆凡品</button>
+      <span class="sub2" style="letter-spacing:0">点卡片看详情 · 「炉」开熔炉打造 · 「拆」得器魂 · 宝品以上捡到时是蒙尘的，得先鉴</span>
+    </div>
+    <div class="bag" id="bag"></div>
+  </div>
+</div>
+
+<div class="mask" id="mask"><div class="modal" id="modal"></div></div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

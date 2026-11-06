@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>拾遗 · 试炼台 v0.2</title>
+<style>
+  :root{
+    --paper:#f4efe2;--paper2:#e8dfc9;--ink:#241f18;--ink2:#6b6154;
+    --line:#c9bda2;--jade:#2f6b52;--cin:#a83b2c;--gold:#a8811f;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--paper);color:var(--ink);
+    font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",monospace;
+    font-size:13px;line-height:1.6;user-select:none;
+    background-image:linear-gradient(rgba(201,189,162,.22) 1px,transparent 1px),linear-gradient(90deg,rgba(201,189,162,.22) 1px,transparent 1px);
+    background-size:16px 16px;
+  }
+  .app{max-width:1140px;margin:0 auto;padding:12px}
+  .top{display:flex;align-items:center;gap:14px;border:2px solid var(--ink);background:var(--paper2);padding:7px 12px;margin-bottom:10px;flex-wrap:wrap}
+  .logo{font-size:16px;font-weight:800;letter-spacing:4px}
+  .stat{font-size:12px;color:var(--ink2)}
+  .stat b{color:var(--ink)}
+  .spacer{flex:1}
+  button{font-family:inherit;font-size:12px;padding:5px 12px;border:2px solid var(--ink);background:var(--paper);color:var(--ink);cursor:pointer;letter-spacing:1px}
+  button:hover{background:var(--ink);color:var(--paper)}
+  button:disabled{opacity:.3;cursor:not-allowed}
+  button.sm{padding:1px 6px;font-size:10px;border-width:1px;letter-spacing:0}
+  .main{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
+  .left{flex:0 0 auto}
+  canvas{display:block;border:3px solid var(--ink);image-rendering:pixelated;background:#15120e}
+  .right{flex:1;min-width:360px;display:flex;flex-direction:column;gap:8px}
+  .panel{border:2px solid var(--ink);background:var(--paper2);padding:9px 11px}
+  .ph{display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:2px;color:var(--ink2);margin-bottom:7px}
+  .ph:after{content:"";flex:1;height:1px;background:var(--line)}
+  /* 配装 */
+  .slots{display:flex;align-items:center;gap:3px;justify-content:center}
+  .slot{width:74px;height:84px;border:2px dashed var(--line);background:var(--paper);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative;transition:.1s}
+  .slot.filled{border-style:solid;border-color:var(--ink)}
+  .slot:hover{background:#fffdf7}
+  .slot .pos{position:absolute;top:1px;left:0;right:0;text-align:center;font-size:9px;color:var(--ink2);letter-spacing:1px}
+  .slot .el{font-size:24px;font-weight:700;line-height:1;font-family:"STKaiti","KaiTi",serif}
+  .slot .fx{font-size:8px;color:var(--gold);line-height:1.3}
+  .conn{width:38px;text-align:center;font-size:10px;line-height:1.2}
+  .conn .r{font-size:12px;font-weight:700}
+  /* 属性 */
+  .attrs{display:grid;grid-template-columns:repeat(4,1fr);gap:2px 6px;font-size:11.5px}
+  .attrs div{display:flex;justify-content:space-between;border-bottom:1px dotted var(--line);padding:1px 0}
+  .attrs span{color:var(--ink2)}
+  .attrs b{font-weight:700}
+  .mulbox{display:flex;align-items:baseline;gap:10px;margin:6px 0 4px}
+  .big{font-size:28px;font-weight:800;letter-spacing:-1px;line-height:1}
+  .tag{font-size:10.5px;padding:1px 6px;border:1px solid currentColor;letter-spacing:1px}
+  /* 功法 */
+  .art{border:2px solid var(--line);background:var(--paper);padding:6px 8px;font-size:11.5px;cursor:pointer}
+  .art.on{border-color:var(--gold);background:#fffdf7}
+  .art .st{color:var(--gold);letter-spacing:1px}
+  /* 行囊 */
+  .bag{display:flex;gap:5px;flex-wrap:wrap;min-height:66px;margin-top:6px}
+  .item{width:78px;border:2px solid var(--line);background:var(--paper);padding:4px 3px;text-align:center;position:relative;cursor:pointer}
+  .item:hover{border-color:var(--gold)}
+  .item .el{font-size:17px;font-weight:700;line-height:1.1;font-family:"STKaiti","KaiTi",serif}
+  .item .n{font-size:8.5px;color:var(--ink2)}
+  .item .af{font-size:8px;line-height:1.25;color:var(--jade)}
+  .item.broken{border-style:dashed}
+  .item .act{display:flex;gap:2px;justify-content:center;margin-top:2px}
+  /* 弹层 */
+  .mask{position:fixed;inset:0;background:rgba(36,31,24,.6);display:none;align-items:center;justify-content:center;z-index:50}
+  .mask.on{display:flex}
+  .modal{background:var(--paper);border:3px solid var(--ink);padding:16px 20px;max-width:560px;width:92%;max-height:86vh;overflow-y:auto}
+  .modal h3{margin:0 0 8px;font-size:15px;letter-spacing:2px}
+  .modal p{margin:5px 0;font-size:12.5px;color:var(--ink2)}
+  .modal table{width:100%;border-collapse:collapse;font-size:11.5px;margin:6px 0}
+  .modal td,.modal th{border:1px solid var(--line);padding:3px 6px;text-align:left}
+  .modal .row{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+  .tip{font-size:11px;color:var(--ink2);margin-top:6px;line-height:1.65}
+  .sub2{font-size:10.5px;color:var(--ink2)}
+  @media(max-width:920px){.right{min-width:100%}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="top">
+    <div class="logo">拾 遗 · 试 炼</div>
+    <div class="stat">第 <b id="wave">1</b> 波</div>
+    <div class="stat">最高 <b id="best">0</b> 波</div>
+    <div class="stat">灵石 <b id="stones">0</b></div>
+    <div class="spacer"></div>
+    <div class="stat">难度
+      <select id="diff" onchange="setDiff()" style="font-family:inherit;font-size:12px;border:1px solid var(--line);background:var(--paper);padding:2px 4px">
+        <option value="0.7">练气 · 易</option>
+        <option value="1" selected>筑基 · 常</option>
+        <option value="1.5">金丹 · 难</option>
+        <option value="2.2">元婴 · 苦</option>
+        <option value="3.2">化神 · 死</option>
+      </select>
+    </div>
+    <button onclick="showHelp()">玩法</button>
+    <button onclick="resetAll()">重来</button>
+  </div>
+
+  <div class="main">
+    <div class="left">
+      <canvas id="cv" width="620" height="330"></canvas>
+      <div class="tip" style="width:620px;display:flex;gap:14px;justify-content:space-between">
+        <span>敌人每 0.9 秒出一手，你也还一手。血空了就重来本波，装备留着。</span>
+        <span id="dps" style="color:var(--cin)"></span>
+      </div>
+    </div>
+
+    <div class="right">
+      <div class="panel">
+        <div class="ph">三才 · 天 / 人 / 地</div>
+        <div class="slots" id="slots"></div>
+        <div class="mulbox">
+          <div class="big" id="mul">×1.00</div>
+          <div>
+            <div class="tag" id="school" style="color:var(--ink2)">—</div>
+            <div class="sub2" id="rels">—</div>
+          </div>
+        </div>
+        <div class="attrs" id="attrs"></div>
+      </div>
+
+      <div class="panel">
+        <div class="ph">心法 · 七曜</div>
+        <div id="arts" style="display:flex;flex-direction:column;gap:4px"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:10px">
+    <div class="ph">行囊 <span class="sub2" id="bagcnt"></span></div>
+    <div class="bag" id="bag"></div>
+  </div>
+</div>
+
+<div class="mask" id="mask"><div class="modal" id="modal"></div></div>
+
+<script>
+/* ==========================================================
+   拾遗 · 试炼台 v0.2
+   无挖矿。波次战斗 + 三才配装 + 词条 + 七曜心法。
+   ========================================================== */
+
+const XING=['木','火','土','金','水'];
+const SHENG={木:'火',火:'土',土:'金',金:'水',水:'木'};
+const KE={木:'土',土:'水',水:'火',火:'金',金:'木'};
+const COL={木:'#4d8a5e',火:'#b8432f',土:'#a8811f',金:'#5b7c96',水:'#6b4a7a'};
+const MULT={生:2,逆生:1,比和:1,克:0.25};
+const SHA_LOSS=0.75;
+
+/* ---------- 词条（八字） ---------- */
+const AFX={
+  feng:{n:'锋',c:'#b8432f',d:'物攻'},
+  yuan:{n:'元',c:'#6b4a7a',d:'法攻'},
+  hp  :{n:'血',c:'#a83b2c',d:'气血'},
+  gu  :{n:'骨',c:'#5b7c96',d:'护体'},
+  gang:{n:'罡',c:'#a8811f',d:'破防'},
+  sha :{n:'煞',c:'#8a2f2a',d:'暴击'},
+  shi :{n:'噬',c:'#2f6b52',d:'吸血'},
+  ji  :{n:'疾',c:'#38617f',d:'出手'},
+};
+const AFXK=['feng','yuan','hp','gu','gang','sha','shi','ji'];
+const AFX_RANGE={feng:[3,6],yuan:[3,5],hp:[10,18],gu:[2,4],gang:[3,5],sha:[3,6],shi:[2,4],ji:[1,2]};
+
+/* ---------- 七曜心法 ---------- */
+const ARTS=[
+  {id:'a1',star:1,name:'引气诀',desc:'气血 +40。没有代价，也没有惊喜。',
+   flat:{hp:40}},
+  {id:'a2',star:2,name:'锐金诀',desc:'锋 +30%，元 −45%。走外功就别想内炼。',
+   pct:{feng:0.30,yuan:-0.45}},
+  {id:'a3',star:3,name:'三才归元',desc:'三件同属一行时倍率 ×1.7；但三槽不再放大词条（职能失效）。',
+   rule:'unity'},
+  {id:'a4',star:4,name:'阴阳倒转',desc:'第一对相克视为「生」；代价是每回合自损 4 点气血。',
+   rule:'reverse'},
+  {id:'a5',star:5,name:'煞海无量',desc:'煞值不再燃烧，改为永久积累，每点煞 +9% 伤害；代价是气血上限 −25%。',
+   rule:'shaSea'},
+  {id:'a7',star:7,name:'大周天',desc:'开启第五槽，三才化五行。此界尚未有人证得。',
+   rule:'locked',locked:true},
+];
+
+/* ---------- 状态 ---------- */
+const G={
+  wave:1, best:0, stones:0, diff:1,
+  bag:[], slots:[null,null,null], art:null, artList:[],
+  uid:1, running:true
+};
+
+/* ---------- 装备 ---------- */
+const GNAME=['','凡品','灵品','宝品','仙品','道品'];
+function effGrade(it){ return it.broken? Math.max(1,it.grade-1): it.grade; }
+
+function makeItem(wave){
+  const x=XING[Math.floor(Math.random()*5)];
+  const y=Math.random()<0.5?'阳':'阴';
+  let grade=1+Math.floor(Math.random()*2)+Math.floor(wave/4);
+  grade=Math.max(1,Math.min(5,grade));
+  const broken=Math.random()<0.5;
+
+  let n=1+Math.floor(grade/2)+Math.floor(Math.random()*2);
+  if(broken) n-=1;
+  n=Math.max(0,Math.min(4,n));
+
+  const pool=AFXK.slice();
+  const affixes=[];
+  for(let i=0;i<n;i++){
+    const k=pool.splice(Math.floor(Math.random()*pool.length),1)[0];
+    const r=AFX_RANGE[k];
+    const base=r[0]+Math.random()*(r[1]-r[0]);
+    const g=0.7+grade*0.35;
+    affixes.push({k, v: Math.round(base*g*10)/10});
+  }
+  return {id:G.uid++,x,y,grade,broken,affixes,
+    name:(broken?'残·':'')+y+x+'器'};
+}
+
+/* ---------- 三才结算 ---------- */
+function relOf(a,b){
+  if(a.x===b.x) return '比和';
+  if(SHENG[a.x]===b.x) return '生';
+  if(SHENG[b.x]===a.x) return '逆生';
+  return '克';
+}
+function evaluate(arr){
+  const a=arr[0],b=arr[1],c=arr[2];
+  if(!a||!b||!c){
+    const rs=[];
+    if(a&&b) rs.push(relOf(a,b));
+    if(b&&c) rs.push(relOf(b,c));
+    let m=1; rs.forEach(r=>m*=MULT[r]);
+    return {r1:rs[0]||'—',r2:rs[1]||'—',m,total:m,sha:0,burn:false,partial:true,yyAll:false,yyNone:false};
+  }
+  let r1=relOf(a,b), r2=relOf(b,c);
+  // 心法：阴阳倒转
+  if(G.art==='a4' && r1==='克') r1='生';
+  let m=MULT[r1]*MULT[r2];
+  let sha=0;
+  if(r1==='克') sha+=SHA_LOSS;
+  if(r2==='克') sha+=SHA_LOSS;
+  let burn = sha>0 && r2==='生';
+  if(G.art==='a5') burn=false;           // 煞海：不燃，改永久积煞
+  const raw=m+(burn?sha:0);
+  const yyAll=a.y==='阳'&&b.y==='阳'&&c.y==='阳';
+  const yyNone=a.y==='阴'&&b.y==='阴'&&c.y==='阴';
+  let yyMul=(yyAll||yyNone)?0.5:1;
+  let total=raw*yyMul;
+  // 心法：三才归元
+  if(G.art==='a3' && a.x===b.x && b.x===c.x) total*=1.6;
+  // 心法：煞海
+  let shaBonus=0;
+  if(G.art==='a5' && sha>0) shaBonus=sha*0.09;
+
+  return {r1,r2,m,sha,burn,raw,yyAll,yyNone,yyMul,total:total*(1+shaBonus),shaBonus};
+}
+
+/* ---------- 属性 ---------- */
+/* 三位职能：天位放大锋，人位放大元，地位放大血/骨 */
+const POS_FX=[
+  {feng:1.6},
+  {yuan:1.6},
+  {hp:1.5,gu:1.5}
+];
+const POS_NAME=['天位·锋','人位·元','地位·体'];
+
+function calcStats(){
+  const e=evaluate(G.slots);
+  const s={hp:58,feng:8,yuan:4,gu:0,gang:0,sha:5,shi:0,ji:100};
+  G.slots.forEach((it,i)=>{
+    if(!it) return;
+    const eg=effGrade(it);
+    s.hp+=eg*5; s.feng+=eg*1.5;
+    it.affixes.forEach(af=>{
+      let v=af.v;
+      const boost=(G.art==='a3')? null : POS_FX[i][af.k];   // 三才归元：职能失效
+      if(boost) v*=boost;
+      s[af.k]=(s[af.k]||0)+v;
+    });
+  });
+  // 心法
+  const art=ARTS.find(a=>a.id===G.art);
+  if(art){
+    if(art.flat) for(const k in art.flat) s[k]+=art.flat[k];
+    if(art.pct) for(const k in art.pct) s[k]*=(1+art.pct[k]);
+    if(art.rule==='shaSea') s.hp*=0.75;   // 代价：气血上限 -25%
+  }
+  // 煞值 → 伤害加成
+  let shaDmg=0;
+  if(G.art==='a5' && e.sha>0) shaDmg=e.sha*0.09;
+
+  const atk=(s.feng+s.yuan*0.6)*e.total*(1+shaDmg);
+  const crit=Math.min(75,s.sha);
+  const dmg=Math.round(atk*(1+crit/100*0.8));   // 期望伤害
+  return {s,e,atk:Math.round(atk),dmg,crit:Math.round(crit)};
+}
+
+/* ---------- 敌人 ---------- */
+const MOBS=['山魈','赤睛狼','骨蛭','石傀儡','魇鸦','腐道人','血藤','夜叉'];
+function makeMob(wave){
+  const d=G.diff;
+  const hp=Math.round((20+wave*8)*d);
+  const atk=Math.round((3+wave*1.2)*d*10)/10;
+  return {
+    name:MOBS[Math.floor(Math.random()*MOBS.length)]+(wave>8?'·王':''),
+    hp, maxhp:hp, atk,
+    x:418,y:GROUND, hx:0, hurt:0, atkAnim:0, dead:false
+  };
+}
+
+/* ---------- 战斗状态 ---------- */
+let mob=null, php=1, pmaxhp=1, shake=0, parts=[], floats=[], hitFlash=0;
+let playerAnim=0, tickAcc=0, pHurt=0;
+const TICK=0.78;
+
+/* ---------- 音效 ---------- */
+let AC=null;
+function sfx(type){
+  try{
+    if(!AC) AC=new (window.AudioContext||window.webkitAudioContext)();
+    const t=AC.currentTime;
+    const o=AC.createOscillator(), g=AC.createGain();
+    o.connect(g); g.connect(AC.destination);
+    if(type==='hit'){ o.type='square'; o.frequency.setValueAtTime(180,t); o.frequency.exponentialRampToValueAtTime(70,t+0.09); g.gain.setValueAtTime(0.05,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.11); o.start(t); o.stop(t+0.12); }
+    else if(type==='crit'){ o.type='sawtooth'; o.frequency.setValueAtTime(420,t); o.frequency.exponentialRampToValueAtTime(120,t+0.14); g.gain.setValueAtTime(0.07,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.16); o.start(t); o.stop(t+0.17); }
+    else if(type==='hurt'){ o.type='triangle'; o.frequency.setValueAtTime(90,t); o.frequency.exponentialRampToValueAtTime(50,t+0.15); g.gain.setValueAtTime(0.06,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.18); o.start(t); o.stop(t+0.19); }
+    else if(type==='win'){ o.type='square'; o.frequency.setValueAtTime(300,t); o.frequency.setValueAtTime(450,t+0.07); o.frequency.setValueAtTime(600,t+0.14); g.gain.setValueAtTime(0.05,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.28); o.start(t); o.stop(t+0.3); }
+    else if(type==='die'){ o.type='sawtooth'; o.frequency.setValueAtTime(200,t); o.frequency.exponentialRampToValueAtTime(40,t+0.4); g.gain.setValueAtTime(0.07,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.42); o.start(t); o.stop(t+0.44); }
+  }catch(e){}
+}
+
+/* ---------- 粒子与飘字 ---------- */
+function burst(x,y,n,color){
+  for(let i=0;i<n;i++){
+    parts.push({x,y,vx:(Math.random()-0.5)*260,vy:-Math.random()*200-40,
+      life:0.5+Math.random()*0.3,t:0,c:color,s:2+Math.random()*3});
+  }
+}
+function floatText(x,y,txt,color,big){
+  floats.push({x,y,txt,c:color,t:0,life:0.9,big:!!big});
+}
+
+/* ---------- 画布 ---------- */
+const cv=document.getElementById('cv');
+const ctx=cv.getContext('2d');
+ctx.imageSmoothingEnabled=false;
+
+function px(x){ return x; }
+
+const GROUND=252;
+const PLAYER_X=196;
+
+function drawBG(){
+  const g=ctx.createLinearGradient(0,0,0,GROUND);
+  g.addColorStop(0,'#14161d'); g.addColorStop(0.6,'#1e2028'); g.addColorStop(1,'#2c2a2c');
+  ctx.fillStyle=g; ctx.fillRect(0,0,cv.width,GROUND);
+
+  // 远山三重
+  const layers=[{c:'#1b1d24',h:110,o:0},{c:'#22242c',h:80,o:40},{c:'#282a30',h:54,o:90}];
+  layers.forEach((L,li)=>{
+    ctx.fillStyle=L.c;
+    ctx.beginPath();
+    ctx.moveTo(-40,GROUND);
+    for(let i=0;i<=8;i++){
+      const bx=-40+i*90+L.o;
+      const bh=L.h*(0.6+((i*47+li*31)%70)/100);
+      ctx.lineTo(bx,GROUND-bh);
+      ctx.lineTo(bx+45,GROUND-bh*0.55);
+    }
+    ctx.lineTo(cv.width+40,GROUND);
+    ctx.fill();
+  });
+
+  // 月牙
+  ctx.save();
+  ctx.globalAlpha=.85;
+  ctx.fillStyle='#efe7cd';
+  ctx.beginPath(); ctx.arc(505,58,17,0,7); ctx.fill();
+  ctx.fillStyle='#14161d';
+  ctx.beginPath(); ctx.arc(513,51,15,0,7); ctx.fill();
+  ctx.restore();
+
+  // 地面
+  ctx.fillStyle='#241f1a'; ctx.fillRect(0,GROUND,cv.width,18);
+  ctx.fillStyle='#191510'; ctx.fillRect(0,GROUND+18,cv.width,cv.height-GROUND-18);
+  ctx.fillStyle='#332b22';
+  for(let x=0;x<cv.width;x+=22) ctx.fillRect(x,GROUND,11,2);
+  // 地面碎石
+  for(let i=0;i<16;i++){
+    const x=(i*97)%cv.width, y=GROUND+6+((i*53)%12);
+    ctx.fillStyle='#2d251d'; ctx.fillRect(x,y,3,2);
+  }
+  // 草丛（静态伪随机）
+  for(let i=0;i<26;i++){
+    const x=(i*61+17)%cv.width;
+    const h=3+((i*29)%4);
+    ctx.fillStyle='#20281f';
+    ctx.fillRect(x,GROUND-h,1.5,h);
+    ctx.fillRect(x+3,GROUND-h+1,1.5,h-1);
+    ctx.fillRect(x+6,GROUND-h+2,1.5,h-2);
+  }
+}
+
+/* 以「脚底」为原点绘制人形 */
+function drawMan(x,footY,S,body,hair,tint){
+  ctx.save();
+  ctx.translate(x,footY);
+  ctx.fillStyle='rgba(0,0,0,.4)';
+  ctx.beginPath(); ctx.ellipse(0,2,S*2.2,S*0.6,0,0,7); ctx.fill();
+  // 腿
+  ctx.fillStyle='#20293a';
+  ctx.fillRect(-S*1.3,-S*2.0,S*1.0,S*2.0);
+  ctx.fillRect(S*0.3,-S*2.0,S*1.0,S*2.0);
+  // 身
+  ctx.fillStyle=body;
+  ctx.fillRect(-S*1.6,-S*4.8,S*3.2,S*3.0);
+  // 领口
+  ctx.fillStyle='rgba(255,255,255,.18)';
+  ctx.fillRect(-S*0.7,-S*4.8,S*1.4,S*1.1);
+  // 腰带
+  ctx.fillStyle='#8a7a4a';
+  ctx.fillRect(-S*1.6,-S*2.6,S*3.2,S*0.45);
+  // 头
+  ctx.fillStyle='#e6cdaa';
+  ctx.fillRect(-S*1.0,-S*6.4,S*2.0,S*1.7);
+  // 发
+  ctx.fillStyle=hair;
+  ctx.fillRect(-S*1.15,-S*6.8,S*2.3,S*0.8);
+  ctx.fillRect(-S*1.15,-S*6.4,S*0.35,S*0.9);
+  // 眼
+  ctx.fillStyle='#1e1a14';
+  ctx.fillRect(-S*0.5,-S*5.7,S*0.35,S*0.4);
+  ctx.fillRect(S*0.2,-S*5.7,S*0.35,S*0.4);
+  // 剑
+  ctx.fillStyle='#cfc7b2';
+  ctx.fillRect(S*1.7,-S*5.4,S*0.3,S*3.4);
+  ctx.fillStyle='#8a7a4a';
+  ctx.fillRect(S*1.45,-S*2.3,S*0.85,S*0.35);
+  // 受击提亮
+  if(tint){
+    ctx.save();
+    ctx.globalCompositeOperation='lighter';
+    ctx.globalAlpha=0.42;
+    ctx.fillStyle=tint;
+    ctx.fillRect(-S*1.8,-S*7.0,S*3.9,S*7.1);
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+function drawPlayer(){
+  const S=8.5;
+  const lunge = playerAnim>0 ? Math.sin((1-playerAnim/0.32)*Math.PI)*42 : 0;
+  drawMan(PLAYER_X+lunge, GROUND, S, '#2f4055', '#241f18', pHurt>0?'#8a4a3a':null);
+  if(playerAnim>0){
+    const a=playerAnim/0.32;
+    ctx.save();
+    ctx.globalAlpha=a*0.95;
+    // 剑弧
+    ctx.strokeStyle='#ffe8a3';
+    ctx.lineWidth=5;
+    ctx.beginPath();
+    ctx.arc(PLAYER_X+lunge+34, GROUND-46, 46, -1.25, 0.35);
+    ctx.stroke();
+    ctx.strokeStyle='rgba(255,232,163,.35)';
+    ctx.lineWidth=12;
+    ctx.beginPath();
+    ctx.arc(PLAYER_X+lunge+34, GROUND-46, 46, -1.15, 0.25);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function drawMob(){
+  if(!mob||mob.dead) return;
+  const lunge = mob.atkAnim>0 ? Math.sin((1-mob.atkAnim/0.3)*Math.PI)*-34 : 0;
+  const x=mob.x + (mob.hx||0) + lunge;
+  const footY=GROUND;
+  const S=9;
+  ctx.save();
+  ctx.translate(x,footY);
+  // 影
+  ctx.fillStyle='rgba(0,0,0,.42)';
+  ctx.beginPath(); ctx.ellipse(0,2,S*2.4,S*0.65,0,0,7); ctx.fill();
+  const flash = mob.hurt>0;
+  // 腿
+  ctx.fillStyle='#4a1c17';
+  ctx.fillRect(-S*1.2,-S*1.8,S*0.9,S*1.8);
+  ctx.fillRect(S*0.3,-S*1.8,S*0.9,S*1.8);
+  // 身
+  ctx.fillStyle='#6b2620';
+  ctx.fillRect(-S*1.9,-S*5.2,S*3.8,S*3.4);
+  // 肩甲
+  ctx.fillStyle='#8a2f2a';
+  ctx.fillRect(-S*2.1,-S*5.2,S*4.2,S*0.8);
+  // 头
+  ctx.fillStyle='#5a1f1a';
+  ctx.fillRect(-S*1.2,-S*7.0,S*2.4,S*1.9);
+  // 角
+  ctx.fillStyle='#c9a227';
+  ctx.beginPath(); ctx.moveTo(-S*1.2,-S*7.0); ctx.lineTo(-S*1.8,-S*8.4); ctx.lineTo(-S*0.6,-S*7.0); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(S*1.2,-S*7.0); ctx.lineTo(S*1.8,-S*8.4); ctx.lineTo(S*0.6,-S*7.0); ctx.fill();
+  // 眼
+  ctx.fillStyle='#f0c040';
+  ctx.fillRect(-S*0.75,-S*6.2,S*0.5,S*0.45);
+  ctx.fillRect(S*0.25,-S*6.2,S*0.5,S*0.45);
+  // 牙
+  ctx.fillStyle='#e8e0c8';
+  for(let i=0;i<3;i++) ctx.fillRect(-S*0.6+i*S*0.5,-S*5.35,S*0.25,S*0.4);
+  if(flash){
+    ctx.save();
+    ctx.globalCompositeOperation='lighter';
+    ctx.globalAlpha=0.45; ctx.fillStyle='#a03a2a';
+    ctx.fillRect(-S*2.2,-S*8.5,S*4.4,S*8.6);
+    ctx.restore();
+  }
+  ctx.restore();
+
+  // 血条
+  const bw=90, bx=x-bw/2, by=footY-S*10.4;
+  ctx.fillStyle='rgba(0,0,0,.7)'; ctx.fillRect(bx-2,by-2,bw+4,11);
+  ctx.fillStyle='#3a1a17'; ctx.fillRect(bx,by,bw,7);
+  const w=Math.max(0,mob.hp/mob.maxhp)*bw;
+  const grd=ctx.createLinearGradient(bx,0,bx+bw,0);
+  grd.addColorStop(0,'#a83b2c'); grd.addColorStop(1,'#e0644f');
+  ctx.fillStyle=grd; ctx.fillRect(bx,by,w,7);
+  ctx.fillStyle='#c9bda2'; ctx.font='11px monospace'; ctx.textAlign='center';
+  ctx.fillText(mob.name, x, by-6);
+  ctx.fillStyle='#8d8474'; ctx.font='9px monospace';
+  ctx.fillText(Math.max(0,Math.round(mob.hp))+' / '+Math.round(mob.maxhp), x, by+18);
+  ctx.textAlign='left';
+}
+
+function drawHPBar(){
+  const w=230, x=26, y=290;
+  ctx.fillStyle='rgba(0,0,0,.6)'; ctx.fillRect(x-3,y-3,w+6,15);
+  ctx.fillStyle='#2a1b18'; ctx.fillRect(x,y,w,9);
+  const r=Math.max(0,php/pmaxhp);
+  const g=ctx.createLinearGradient(x,0,x+w,0);
+  g.addColorStop(0,'#2f6b52'); g.addColorStop(1,'#6cbb8c');
+  ctx.fillStyle=g; ctx.fillRect(x,y,w*r,9);
+  ctx.fillStyle='#c9bda2'; ctx.font='10px monospace';
+  ctx.fillText('气血 '+Math.max(0,Math.round(php))+' / '+Math.round(pmaxhp), x, y+24);
+}
+
+function updateVisual(dt){
+  if(shake>0) shake=Math.max(0,shake-dt*2.6);
+  if(hitFlash>0) hitFlash=Math.max(0,hitFlash-dt*3);
+  if(playerAnim>0) playerAnim=Math.max(0,playerAnim-dt);
+  if(pHurt>0) pHurt=Math.max(0,pHurt-dt);
+  if(mob){
+    if(mob.hurt>0) mob.hurt=Math.max(0,mob.hurt-dt);
+    if(mob.hx!==0) mob.hx*=Math.pow(0.0009,dt);
+    if(mob.atkAnim>0) mob.atkAnim=Math.max(0,mob.atkAnim-dt);
+  }
+  parts.forEach(p=>{ p.t+=dt; p.vy+=560*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; });
+  parts=parts.filter(p=>p.t<p.life);
+  floats.forEach(f=>{ f.t+=dt; f.y-=40*dt; });
+  floats=floats.filter(f=>f.t<f.life);
+}
+
+function render(){
+  const sx=(Math.random()-0.5)*shake*20;
+  const sy=(Math.random()-0.5)*shake*20;
+  ctx.save();
+  ctx.translate(sx,sy);
+  drawBG();
+  drawMob();
+  drawPlayer();
+  drawHPBar();
+
+  parts.forEach(p=>{
+    ctx.globalAlpha=Math.max(0,1-p.t/p.life);
+    ctx.fillStyle=p.c;
+    ctx.fillRect(p.x,p.y,p.s,p.s);
+  });
+  ctx.globalAlpha=1;
+
+  floats.forEach(f=>{
+    ctx.globalAlpha=Math.max(0,1-Math.pow(f.t/f.life,2));
+    ctx.font=(f.big?'bold 24px':'bold 16px')+' monospace';
+    ctx.fillStyle=f.c;
+    ctx.textAlign='center';
+    ctx.fillText(f.txt, f.x, f.y);
+  });
+  ctx.globalAlpha=1;
+  ctx.textAlign='left';
+
+  if(hitFlash>0){
+    ctx.fillStyle='rgba(200,40,30,'+(hitFlash*0.25)+')';
+    ctx.fillRect(0,0,cv.width,cv.height);
+  }
+  ctx.restore();
+}
+
+let last=0;
+function loop(t){
+  const dt=Math.min(0.05,(t-last)/1000||0);
+  last=t;
+  updateVisual(dt);
+  render();
+  requestAnimationFrame(loop);
+}
+
+/* ---------- 回合 ---------- */
+function playerTurn(){
+  const st=calcStats();
+  const crit=Math.random()*100 < st.crit;
+  let dmg=Math.round(st.atk*(crit?1.8:1));
+  mob.hp-=dmg;
+  mob.hurt=0.16; mob.hx=14; shake=0.6;
+  playerAnim=0.32;
+  burst(mob.x-10, mob.y-10, crit?16:9, crit?'#ffd166':'#e8b04a');
+  floatText(mob.x+(Math.random()-0.5)*30, mob.y-40, (crit?'暴 ':'')+dmg, crit?'#ffd166':'#f0e6c0', crit);
+  sfx(crit?'crit':'hit');
+  if(mob.hp<=0) killMob();
+}
+
+function enemyTurn(){
+  if(!mob || mob.dead) return;
+  if(G.art==='a4' && php>4){ php-=4; floatText(PLAYER_X, GROUND-96, '-4 反噬', '#a83b2c'); }
+  const st=calcStats();
+  let raw=mob.atk - st.s.gu*0.55;
+  raw=Math.max(1,raw);
+  php-=raw;
+  hitFlash=0.5; shake=0.5; pHurt=0.18;
+  mob.atkAnim=0.3;
+  burst(160, 220, 7, '#c94a3a');
+  floatText(150+(Math.random()-0.5)*20, 200, '-'+Math.round(raw), '#e07a6a');
+  sfx('hurt');
+  if(php<=0){ php=0; onDeath(); }
+}
+
+function killMob(){
+  mob.dead=true;
+  sfx('win');
+  burst(mob.x, mob.y-40, 30, '#c9a227');
+  floatText(mob.x, mob.y-80, '斩', '#ffd166', true);
+  G.stones+=6+G.wave*3;
+  G.best=Math.max(G.best,G.wave);
+  refresh();
+  setTimeout(()=>{ if(php>0) offerLoot(); }, 720);
+}
+
+/* 一件装备放哪一位收益最大 */
+function bestSlot(it){
+  let bi=-1, bg=0;
+  for(let i=0;i<3;i++){
+    let g=0;
+    it.affixes.forEach(a=>{ const b=POS_FX[i][a.k]; if(b) g+=a.v*(b-1); });
+    if(g>bg){ bg=g; bi=i; }
+  }
+  return {i:bi, gain:Math.round(bg*10)/10};
+}
+
+/* 三选一：这才是「配装」成为决策的地方 */
+let lootOpts=[];
+function offerLoot(){
+  G.running=false;
+  lootOpts=[makeItem(G.wave), makeItem(G.wave), makeItem(G.wave)];
+  // 保底：至少一件完整器
+  if(lootOpts.every(i=>i.broken)) lootOpts[0].broken=false;
+
+  const card=(it,i)=>{
+    const afs=it.affixes.map(a=>'<span style="color:'+AFX[a.k].c+'">'+AFX[a.k].n+'+'+a.v+'</span>').join('　')||'<span style="opacity:.4">无词条</span>';
+    const bs=bestSlot(it);
+    const hint = bs.gain>0 ? '宜置 <b>'+['天','人','地'][bs.i]+'位</b>（+'+bs.gain+'）' : '<span style="opacity:.5">置于何处皆可</span>';
+    return '<div onclick="takeLoot('+i+')" style="cursor:pointer;border:2px solid var(--line);background:#fffdf7;padding:10px;text-align:center;flex:1;min-width:130px" '+
+      'onmouseover="this.style.borderColor=\'#a8811f\'" onmouseout="this.style.borderColor=\'#c9bda2\'">'+
+      '<div style="font-size:30px;font-weight:700;color:'+COL[it.x]+';font-family:serif;line-height:1.1">'+it.x+'</div>'+
+      '<div style="font-size:11px;color:var(--ink2)">'+it.y+'·'+GNAME[it.grade]+(it.broken?'·残':'')+'</div>'+
+      '<div style="font-size:10.5px;margin-top:6px;line-height:1.5">'+afs+'</div>'+
+      '<div style="font-size:10px;margin-top:5px;color:var(--gold)">'+hint+'</div>'+
+      '<div style="margin-top:8px"><button class="sm">取 之</button></div>'+
+    '</div>';
+  };
+
+  document.getElementById('modal').innerHTML=
+    '<h3>择 一 而 取</h3>'+
+    '<p>第 '+G.wave+' 波已破。三件遗物，只能带走一件。</p>'+
+    '<div style="display:flex;gap:10px;margin:12px 0;flex-wrap:wrap">'+lootOpts.map(card).join('')+'</div>'+
+    '<p class="tip">看清楚词条再选——下一波你要靠它。'+
+    (G.wave%5===0?' <b style="color:var(--gold)">（本波另有心法掉落）</b>':'')+'</p>'+
+    '<div class="row"><button onclick="skipLoot()">都不取，换 15 灵石</button></div>';
+  document.getElementById('mask').classList.add('on');
+  if(location.search.includes('auto')){
+    setTimeout(()=>{ takeLoot(0); autoEquip(); },40);
+  }
+}
+
+function autoEquip(){
+  G.slots.forEach((it,i)=>{ if(it){ G.bag.push(it); G.slots[i]=null; } });
+  const pool=G.bag.slice();
+  pool.forEach(it=>{
+    const bs=bestSlot(it);
+    if(bs.i>=0 && !G.slots[bs.i]){
+      G.slots[bs.i]=it;
+      const k=G.bag.indexOf(it); if(k>=0) G.bag.splice(k,1);
+    }
+  });
+  for(let i=0;i<3;i++){
+    if(!G.slots[i] && G.bag.length){
+      G.slots[i]=G.bag.shift();
+    }
+  }
+}
+
+function skipLoot(){
+  G.stones+=15;
+  lootOpts=[];
+  closeModal();
+  G.wave++;
+  G.running=true;
+  spawnMob();
+  refresh();
+}
+
+function takeLoot(i){
+  const it=lootOpts[i];
+  if(it) G.bag.push(it);
+  // 每 5 波送心法
+  if(G.wave%5===0){
+    const pool=ARTS.filter(a=>!a.locked && !G.artList.some(x=>x.id===a.id));
+    if(pool.length){
+      const a=pool[Math.floor(Math.random()*pool.length)];
+      G.artList.push(a);
+      setTimeout(()=>floatText(310,110,'得心法 · '+a.name,'#ffd166',true),100);
+    }
+  }
+  lootOpts=[];
+  closeModal();
+  G.wave++;
+  G.running=true;
+  spawnMob();
+  refresh();
+}
+
+function onDeath(){
+  sfx('die');
+  G.running=false;
+  shake=1.2;
+  floatText(160,180,'道消','#e07a6a',true);
+  setTimeout(()=>{
+    document.getElementById('modal').innerHTML=
+      '<h3>道消于此</h3>'+
+      '<p>你在第 <b>'+G.wave+'</b> 波倒下了。历史最高 <b>'+G.best+'</b> 波。</p>'+
+      '<p class="tip">装备与心法都留着。回去重新配一套——先看看你是被「倍率不够」还是「气血太薄」打死的。</p>'+
+      '<div class="row"><button onclick="restart()">重整旗鼓</button></div>';
+    document.getElementById('mask').classList.add('on');
+  }, 900);
+}
+
+function restart(){
+  closeModal();
+  G.wave=1;
+  G.running=true;
+  spawnMob();
+  refresh();
+}
+
+function spawnMob(){
+  mob=makeMob(G.wave);
+  const st=calcStats();
+  pmaxhp=Math.max(1,st.s.hp);
+  php=pmaxhp;
+  tickAcc=0;
+  refresh();
+}
+
+/* ---------- 配装 ---------- */
+function equipFromBag(id){
+  const i=G.bag.findIndex(x=>x.id===id);
+  if(i<0) return;
+  const it=G.bag[i];
+  const empty=G.slots.findIndex(s=>!s);
+  if(empty>=0){ G.slots[empty]=it; G.bag.splice(i,1); }
+  else { logHint('三才位已满，先点槽位卸下一件。'); }
+  refresh();
+}
+function unequip(i){
+  const it=G.slots[i];
+  if(!it) return;
+  G.slots[i]=null; G.bag.push(it);
+  refresh();
+}
+function sellItem(id){
+  const i=G.bag.findIndex(x=>x.id===id);
+  if(i<0) return;
+  const it=G.bag[i];
+  const p=Math.round(Math.pow(it.grade,2)*22*(it.broken?0.45:1));
+  G.stones+=p; G.bag.splice(i,1);
+  refresh();
+}
+
+function logHint(msg){
+  floatText(310,90,msg,'#e07a6a',false);
+}
+
+/* ---------- 心法 ---------- */
+function pickArt(id){
+  if(id==='a7'){ logHint('第五槽尚未开启'); return; }
+  G.art = (G.art===id)? null : id;
+  refresh();
+}
+
+/* ---------- 界面 ---------- */
+function refresh(){
+  document.getElementById('wave').textContent=G.wave;
+  document.getElementById('best').textContent=G.best;
+  document.getElementById('stones').textContent=G.stones;
+
+  const st=calcStats();
+  const e=st.e;
+
+  /* 槽 */
+  const box=document.getElementById('slots');
+  box.innerHTML='';
+  for(let i=0;i<3;i++){
+    if(i>0){
+      const r=(G.slots[i-1]&&G.slots[i])?relOf(G.slots[i-1],G.slots[i]):'—';
+      const d=document.createElement('div');
+      d.className='conn';
+      d.innerHTML='<div class="r" style="color:'+(r==='生'?'var(--gold)':r==='克'?'var(--cin)':'var(--ink2)')+'">'+r+'</div>'+
+        '<div style="color:var(--ink2)">'+(r==='—'?'':('×'+MULT[r]))+'</div>';
+      box.appendChild(d);
+    }
+    const it=G.slots[i];
+    const d=document.createElement('div');
+    d.className='slot'+(it?' filled':'');
+    d.innerHTML='<div class="pos">'+POS_NAME[i]+'</div>'+
+      (it? '<div class="el" style="color:'+COL[it.x]+'">'+it.x+'</div>'+
+           '<div class="fx">'+it.y+'·'+GNAME[it.grade]+(it.broken?'·残':'')+'</div>'
+         : '<div class="el" style="color:var(--line)">空</div><div class="fx">　</div>');
+    d.onclick=()=>unequip(i);
+    box.appendChild(d);
+  }
+
+  /* 倍率 */
+  const mulEl=document.getElementById('mul');
+  mulEl.textContent='×'+e.total.toFixed(2);
+  mulEl.style.color=e.total>=4?'var(--gold)':e.total>=2?'var(--jade)':e.total>=1?'var(--ink)':'var(--cin)';
+
+  document.getElementById('rels').textContent=e.partial?'需三件成阵':(e.r1+' → '+e.r2);
+  document.getElementById('school').textContent=(()=>{
+    if(e.partial) return '未成阵';
+    const {r1,r2}=e;
+    if(r1==='生'&&r2==='生') return '周天三生链';
+    if(r1==='克'&&r2==='生') return '煞爆流';
+    if(r1==='克'&&r2==='克') return '魔道·双滞';
+    if(r1==='生'&&r2==='克') return '先扬后抑';
+    if(r1==='克'||r2==='克') return '蓄煞·残应';
+    if(r1==='比和'&&r2==='比和') return '一元纯体';
+    if(r1==='生'||r2==='生') return '单生·正宗';
+    return '反哺·守御';
+  })();
+  document.getElementById('school').style.color=
+    e.total>=4?'var(--gold)': e.total>=2?'var(--jade)': e.total>=1?'var(--ink2)':'var(--cin)';
+
+  /* 属性 */
+  const A=document.getElementById('attrs');
+  const row=(k,v)=>'<div><span>'+k+'</span><b>'+v+'</b></div>';
+  A.innerHTML=
+    row('气血',Math.round(st.s.hp))+
+    row('锋',Math.round(st.s.feng))+
+    row('元',Math.round(st.s.yuan))+
+    row('骨',Math.round(st.s.gu))+
+    row('罡',Math.round(st.s.gang))+
+    row('煞',Math.round(st.s.sha)+'%')+
+    row('噬',Math.round(st.s.shi)+'%')+
+    row('每击',Math.round(st.atk));
+
+  document.getElementById('dps').textContent =
+    '预计每击 '+Math.round(st.atk)+' · 暴击 '+st.crit+'% · 敌血 '+ (mob?Math.round(mob.maxhp):0);
+
+  /* 心法 */
+  const artsBox=document.getElementById('arts');
+  artsBox.innerHTML='';
+  if(G.artList.length===0){
+    artsBox.innerHTML='<div class="sub2">还没有心法。打满 5 波会掉一本。</div>';
+  }
+  G.artList.forEach(a=>{
+    const d=document.createElement('div');
+    d.className='art'+(G.art===a.id?' on':'');
+    d.innerHTML='<div><span class="st">'+'★'.repeat(a.star)+'</span> '+
+      '<b>'+a.name+'</b></div><div class="sub2">'+a.desc+'</div>';
+    d.onclick=()=>pickArt(a.id);
+    artsBox.appendChild(d);
+  });
+  // 已锁定的七星
+  if(!G.artList.some(a=>a.id==='a7')){
+    const d=document.createElement('div');
+    d.className='art';
+    d.style.opacity='.35';
+    d.innerHTML='<div><span class="st">★</span> <b>？？？</b></div><div class="sub2">七曜之上，尚有未证之道。</div>';
+    artsBox.appendChild(d);
+  }
+
+  /* 行囊 */
+  const bag=document.getElementById('bag');
+  bag.innerHTML='';
+  document.getElementById('bagcnt').textContent='（'+G.bag.length+'）';
+  G.bag.forEach(it=>{
+    const d=document.createElement('div');
+    d.className='item'+(it.broken?' broken':'');
+    const afs=it.affixes.map(a=>'<span style="color:'+AFX[a.k].c+'">'+AFX[a.k].n+'+'+a.v+'</span>').join(' ');
+    d.innerHTML='<div class="el" style="color:'+COL[it.x]+'">'+it.x+'</div>'+
+      '<div class="n">'+it.y+'·'+GNAME[it.grade]+(it.broken?'·残':'')+'</div>'+
+      '<div class="af">'+(afs||'<span style="color:var(--ink2)">无词条</span>')+'</div>'+
+      '<div class="act"><button class="sm" onclick="event.stopPropagation();equipFromBag('+it.id+')">佩</button>'+
+      '<button class="sm" onclick="event.stopPropagation();sellItem('+it.id+')">卖</button></div>';
+    bag.appendChild(d);
+  });
+  if(G.bag.length===0) bag.innerHTML='<div class="sub2">行囊空空。打赢一波就掉一件。</div>';
+}
+
+/* ---------- 难度 ---------- */
+function setDiff(){
+  G.diff=parseFloat(document.getElementById('diff').value);
+  if(mob && !mob.dead){
+    mob.maxhp=Math.round((20+G.wave*8)*G.diff);
+    mob.hp=mob.maxhp;
+    mob.atk=Math.round((3+G.wave*1.2)*G.diff*10)/10;
+  }
+  refresh();
+}
+
+/* ---------- 重置 ---------- */
+function resetAll(){
+  G.wave=1; G.best=0; G.stones=0; G.bag=[]; G.slots=[null,null,null];
+  G.art=null; G.artList=[]; G.running=true;
+  // 送三件起手
+  for(let i=0;i<3;i++) G.bag.push(makeItem(1));
+  // 送一本一星心法
+  G.artList.push(ARTS[0]);
+  spawnMob();
+  refresh();
+}
+
+/* ---------- 弹层 ---------- */
+function closeModal(){ document.getElementById('mask').classList.remove('on'); }
+
+function showHelp(){
+  document.getElementById('modal').innerHTML=
+    '<h3>怎么玩</h3>'+
+    '<p><b>1. 打</b>：敌人每 0.9 秒出一手，你也还一手，全自动。血空了就重来本波，装备不丢。</p>'+
+    '<p><b>2. 配</b>：三件装备分天、人、地。相邻两件「相生」×2，「相克」×¼。</p>'+
+    '<p><b>3. 看</b>：<b>天位放大「锋」词条，人位放大「元」，地位放大「血/骨」</b>。同一件装备放不同位，强度完全不同。</p>'+
+    '<p><b>4. 心法</b>：每 5 波掉一本七曜心法，会改写规则不只是加数字。</p>'+
+    '<p class="tip"><b>核心规矩：</b>生则倍 · 克则滞（滞者为煞，煞遇生则燃）· 阴阳济（纯仙纯魔只有一半）。<br>'+
+    '任取三行必缺两行——那两行就是你的「劫位」。</p>'+
+    '<p class="tip" style="color:var(--cin)">试着把同一组三件，在三个位置间换个顺序——倍率会变，词条放大也会变。这就是取舍。</p>'+
+    '<div class="row"><button onclick="closeModal()">开始</button></div>';
+  document.getElementById('mask').classList.add('on');
+}
+
+/* ---------- 战斗计时（不依赖 rAF，后台也不会停） ---------- */
+let tickTimer=null;
+function startTicker(){
+  if(tickTimer) clearInterval(tickTimer);
+  tickTimer=setInterval(()=>{
+    if(!G.running||!mob||mob.dead||php<=0) return;
+    enemyTurn();
+    if(php>0 && mob && !mob.dead) playerTurn();
+  }, TICK*1000);
+}
+
+/* ---------- 启动 ---------- */
+window.onerror=(m,s,l)=>{ document.title='ERR: '+m+' @'+l; };
+resetAll();
+startTicker();
+requestAnimationFrame(loop);
+if(!location.search.includes('nohelp')) showHelp();
+</script>
+</body>
+</html>

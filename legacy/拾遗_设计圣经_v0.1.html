@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>《拾遗》· 设计圣经 v0.1</title>
+<style>
+  :root{
+    --paper:#f7f3e8;
+    --paper2:#efe8d6;
+    --ink:#231f1a;
+    --ink2:#5a5145;
+    --line:#d9cfb8;
+    --jade:#2f6b52;
+    --cinnabar:#a83b2c;
+    --gold:#a8811f;
+    --blue:#38617f;
+    --purple:#6b4a7a;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--paper);color:var(--ink);
+    font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+    font-size:15px;line-height:1.85;
+    background-image:
+      linear-gradient(rgba(217,207,184,.35) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(217,207,184,.35) 1px,transparent 1px);
+    background-size:24px 24px;
+  }
+  .wrap{max-width:1000px;margin:0 auto;padding:0 26px 90px}
+  header{padding:64px 0 34px;border-bottom:3px double var(--line);margin-bottom:44px;position:relative}
+  .seal{
+    position:absolute;right:0;top:58px;width:76px;height:76px;
+    border:3px solid var(--cinnabar);border-radius:6px;
+    display:flex;align-items:center;justify-content:center;
+    color:var(--cinnabar);font-size:26px;line-height:1.05;text-align:center;
+    letter-spacing:-2px;font-weight:700;transform:rotate(-6deg);opacity:.82;
+    font-family:"STKaiti","KaiTi",serif;
+  }
+  h1{font-size:40px;margin:0 0 8px;letter-spacing:4px;font-weight:800}
+  .sub{color:var(--ink2);font-size:15px;letter-spacing:1px}
+  .kicker{
+    display:inline-block;background:var(--ink);color:var(--paper);
+    font-size:11px;letter-spacing:3px;padding:3px 10px;margin-bottom:18px;
+  }
+  h2{
+    font-size:23px;margin:62px 0 18px;padding-left:14px;
+    border-left:6px solid var(--cinnabar);letter-spacing:2px;
+  }
+  h3{font-size:17px;margin:30px 0 10px;color:var(--jade);letter-spacing:1px}
+  p{margin:10px 0}
+  .lead{font-size:16px;color:var(--ink2)}
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13.5px;background:#fffdf7}
+  th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+  th{background:var(--paper2);font-weight:700;letter-spacing:1px;font-size:13px}
+  td.num{text-align:center;font-variant-numeric:tabular-nums;font-weight:700}
+  code{
+    background:var(--paper2);padding:1px 6px;border-radius:3px;
+    font-family:"SF Mono",Menlo,Consolas,monospace;font-size:12.5px;color:var(--cinnabar);
+  }
+  .law{
+    background:#fffdf7;border:1px solid var(--line);border-left:5px solid var(--gold);
+    padding:16px 20px;margin:14px 0;
+  }
+  .law b{display:block;font-size:16px;letter-spacing:2px;margin-bottom:4px;color:var(--gold)}
+  .law span{color:var(--ink2);font-size:13.5px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .card{
+    background:#fffdf7;border:1px solid var(--line);padding:16px 18px;
+  }
+  .card h4{margin:0 0 8px;font-size:15px;letter-spacing:1px}
+  .card p{margin:4px 0;font-size:13.5px;color:var(--ink2)}
+  .tag{
+    display:inline-block;font-size:11px;padding:1px 7px;border-radius:2px;
+    border:1px solid currentColor;letter-spacing:1px;margin-right:5px;
+  }
+  .t-jade{color:var(--jade)} .t-cin{color:var(--cinnabar)}
+  .t-gold{color:var(--gold)} .t-blue{color:var(--blue)} .t-pur{color:var(--purple)}
+  .flow{
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    background:var(--paper2);border:1px dashed var(--line);padding:14px 18px;margin:16px 0;
+    font-size:13.5px;
+  }
+  .flow b{background:var(--ink);color:var(--paper);padding:3px 9px;font-weight:600;font-size:12.5px}
+  .arrow{color:var(--gold);font-weight:700}
+  .note{
+    background:rgba(168,59,44,.05);border:1px solid rgba(168,59,44,.25);
+    padding:12px 16px;font-size:13px;color:var(--ink2);margin:14px 0;
+  }
+  svg{display:block;margin:22px auto}
+  footer{margin-top:70px;padding-top:20px;border-top:1px dashed var(--line);color:var(--ink2);font-size:12.5px}
+  @media(max-width:760px){.grid2{grid-template-columns:1fr}.seal{display:none}h1{font-size:30px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="seal">拾遗<br>录</div>
+  <div class="kicker">PIXEL · CULTIVATION · TREASURE HUNTING</div>
+  <h1>拾 遗</h1>
+  <div class="sub">一款"挖宝 + 经营 + 配装"的像素修仙生活模拟游戏 · 设计圣经 v0.1</div>
+</header>
+
+<p class="lead">
+绝地天通之后，人界断了仙缘。废墟里散落着仙魔的残兵与断章，凡人捡到一件，便能改命。
+但残兵不认主，它们只认<b>五行与阴阳</b>——你身上三件物什的两两关系，决定你是左脚踏右脚上青天，
+还是寸步难行。
+</p>
+
+<p class="lead">
+这就是全部的规则。三条定律，九个字；剩下的，全交给玩家的组合。
+</p>
+
+<h2>一 · 三条定律</h2>
+
+<div class="law">
+  <b>律一 · 生则乘</b>
+  <span>两件相生，「受生者」继承「施生者」当前效果的 30%（乘算，可链式叠加）。链越长，末位越强。</span>
+</div>
+<div class="law">
+  <b>律二 · 克不灭</b>
+  <span>相克不减伤、不抵消、不消失。被克者把力量封存为「煞」，煞不伤身，只在出手时按 1.3 倍反噬——反给自己，或顺着生链转嫁给别人。</span>
+</div>
+<div class="law">
+  <b>律三 · 三元必缺二</b>
+  <span>五行是五环，任取三行，必有两行落空。那两行就是你的「劫位」：被它们克时伤害翻倍。<br>
+  补上缺的两行 = 大周天（五槽）——这是全游戏唯一的终局目标。</span>
+</div>
+
+<div class="note">
+  <b>为什么是三条而不是五条：</b>玩家只需要记住"生能叠、克不会消失、我永远缺两块"。
+  其余全部由系统推导——没有第四、第五条需要背。这就是"定律最简单、玩法随意组合"的实现方式。
+</div>
+
+<h2>二 · 基础盘：10 个元件 = 十天干</h2>
+
+<p>
+五行各分阴阳，正好 <b>10 个基本元件</b>，对应十天干。每件装备只携带<b>一个元件</b>——
+不做复合属性，保持认知负荷恒定。玩家的全部决策，是"拿哪三个元件凑出什么关系"。
+</p>
+
+<svg viewBox="0 0 620 400" width="100%" style="max-width:560px">
+  <defs>
+    <marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 z" fill="#a8811f"/>
+    </marker>
+  </defs>
+  <circle cx="310" cy="195" r="128" fill="none" stroke="#d9cfb8" stroke-width="1.5" stroke-dasharray="4 6"/>
+  <g font-size="15" font-weight="700" text-anchor="middle" font-family="serif">
+    <circle cx="310" cy="67" r="30" fill="#eaf1ec" stroke="#2f6b52" stroke-width="2"/>
+    <text x="310" y="73" fill="#2f6b52">木</text>
+    <circle cx="432" cy="156" r="30" fill="#fbeee9" stroke="#a83b2c" stroke-width="2"/>
+    <text x="432" y="162" fill="#a83b2c">火</text>
+    <circle cx="385" cy="299" r="30" fill="#f7f0dd" stroke="#a8811f" stroke-width="2"/>
+    <text x="385" y="305" fill="#a8811f">土</text>
+    <circle cx="235" cy="299" r="30" fill="#eef1f5" stroke="#38617f" stroke-width="2"/>
+    <text x="235" y="305" fill="#38617f">金</text>
+    <circle cx="188" cy="156" r="30" fill="#f0edf4" stroke="#6b4a7a" stroke-width="2"/>
+    <text x="188" y="162" fill="#6b4a7a">水</text>
+  </g>
+  <g stroke="#a8811f" stroke-width="2.2" fill="none" marker-end="url(#ar)" opacity=".9">
+    <path d="M335,88 Q400,105 418,132"/>
+    <path d="M427,187 Q420,252 400,272"/>
+    <path d="M358,305 Q310,315 262,305"/>
+    <path d="M220,272 Q200,252 193,187"/>
+    <path d="M202,132 Q220,105 285,88"/>
+  </g>
+  <g stroke="#a83b2c" stroke-width="1.3" stroke-dasharray="5 5" opacity=".55">
+    <path d="M300,96 L400,140"/><path d="M415,185 L392,268"/>
+    <path d="M355,300 L265,300"/><path d="M228,268 L205,185"/>
+    <path d="M212,140 L300,96"/>
+  </g>
+  <text x="310" y="188" text-anchor="middle" font-size="13" fill="#8a8072" font-family="serif">外圈金线：相生</text>
+  <text x="310" y="210" text-anchor="middle" font-size="13" fill="#8a8072" font-family="serif">内侧红虚线：相克</text>
+</svg>
+
+<h2>三 · 核心数学：220 → 1000 → 8</h2>
+
+<p>三件装备，10 个元件，允许重复。答案是三层，每层都有用：</p>
+
+<table>
+  <tr><th>层级</th><th>含义</th><th class="num">数量</th><th>用途</th></tr>
+  <tr><td>无序三元组合</td><td>只看凑了哪几个元件</td><td class="num">220</td><td>设计总量 / 流派归类</td></tr>
+  <tr><td>有序配装态</td><td>天位·地位·人位分工不同</td><td class="num">1000</td><td>玩家的实际构筑空间</td></tr>
+  <tr><td>关系流派</td><td>按两两关系指纹归类</td><td class="num">8</td><td>平衡性调节的抓手</td></tr>
+</table>
+
+<p>
+关键洞察：<b>任意三元组合，其三对两两关系只有 8 种指纹</b>（同 / 合 / 生 / 克 三选，共 8 种有效组合）。
+这 8 种指纹，恰好就是八大门派。平衡性只需要调 8 个数，而不是 220 个数。
+</p>
+
+<h3>八大门派 · 全表</h3>
+
+<table>
+  <tr>
+    <th>门派</th><th>关系指纹</th><th>示例</th><th class="num">组合</th><th class="num">配装态</th><th>定位</th>
+  </tr>
+  <tr>
+    <td><span class="tag t-gold">一元道</span></td><td>同 · 同 · 同</td><td>阳木 / 阳木 / 阳木</td>
+    <td class="num">10</td><td class="num">10</td>
+    <td>三件同气。属性 ×3，无任何相生加成。<b>下限最高的新手流派</b>，也是唯一无法吃生链的流派。</td>
+  </tr>
+  <tr>
+    <td><span class="tag t-jade">同源生</span></td><td>同 · 生 · 生</td><td>阳木 / 阳木 / 阳火</td>
+    <td class="num">40</td><td class="num">120</td>
+    <td>两件同气养一件被生者。<b>爆发流</b>。把全部火力灌给末位一枪。</td>
+  </tr>
+  <tr>
+    <td><span class="tag t-cin">反噬</span></td><td>克 · 克 · 同</td><td>阳木 / 阳木 / 阳土</td>
+    <td class="num">40</td><td class="num">120</td>
+    <td>两件同气 + 一件克它们。<b>煞气流</b>：靠律二囤煞，一次性反打，血薄伤害高。</td>
+  </tr>
+  <tr>
+    <td><span class="tag t-gold">周天残环</span></td><td>克 · 生 · 生</td><td>阳木 / 阳火 / 阳土</td>
+    <td class="num">40</td><td class="num">240</td>
+    <td>三行连珠顺生（5 组连三行 × 8 种阴阳配）。<b>正统仙道成长流</b>，链式乘算上限最高，但缺的两行是明牌弱点。</td>
+  </tr>
+  <tr>
+    <td><span class="tag t-blue">制化</span></td><td>克 · 克 · 生</td><td>阳木 / 阳火 / 阳金</td>
+    <td class="num">40</td><td class="num">240</td>
+    <td>一克二。<b>控制 / 削弱流</b>：把敌人往克位推，靠律二转嫁。</td>
+  </tr>
+  <tr>
+    <td><span class="tag t-pur">阴阳互根</span></td><td>合 · 生 · 生</td><td>阳木 / 阴木 / 阳火</td>
+    <td class="num">20</td><td class="num">120</td>
+    <td>同行阴阳配对 + 外接相生。<b>续航 / 双修流</b>，唯一能自我循环回气的组合。</td>
+  </tr>
+  <tr>
+    <td><span class="tag t-cin">孤阴不生</span></td><td>克 · 克 · 合</td><td>阳木 / 阴木 / 阳土</td>
+    <td class="num">20</td><td class="num">120</td>
+    <td>阴阳配对 + 被克。<b>魔道 / 献祭流</b>：烧煞气换爆发，越打越强也越脆。</td>
+  </tr>
+  <tr>
+    <td><span class="tag t-gold">太极</span></td><td>合 · 合 · 同</td><td>阳木 / 阳木 / 阴木</td>
+    <td class="num">10</td><td class="num">30</td>
+    <td>纯同行三元（2:1 阴阳）。<b>极致单体流</b>：只吃一行，被克时也最惨。</td>
+  </tr>
+</table>
+
+<p><b>合计：220 组合 / 1000 配装态。</b>八门派数量不均（10~40），这是刻意的——
+稀有组合理应更强，但入门组合必须够用，玩家不会在第一天就卡死。</p>
+
+<h2>四 · 三个槽位：天 · 地 · 人</h2>
+
+<p>同样是「阳木 / 阳火 / 阳土」，谁在天位，结果完全不同。这是把 220 撑成 1000 的关键。</p>
+
+<div class="grid2">
+  <div class="card">
+    <h4>天位 · 功法</h4>
+    <p>决定<b>乘算系数</b>。放在这里的那一件，其相生效果再 ×1.5。</p>
+  </div>
+  <div class="card">
+    <h4>地位 · 兵器</h4>
+    <p>决定<b>作用范围 / 穿透</b>。克位的效果在此放大：克制一次 → 打穿一排。</p>
+  </div>
+  <div class="card">
+    <h4>人位 · 符印 / 灵材</h4>
+    <p>决定<b>持续与回复</b>。煞气囤在这里，回气也在这里结算。</p>
+  </div>
+  <div class="card">
+    <h4>缺位提示</h4>
+    <p>UI 常驻显示"劫位"：你还缺哪两行。这是给玩家的长期目标，也是给敌人的情报。</p>
+  </div>
+</div>
+
+<h2>五 · 打造：残兵相生合成</h2>
+
+<p>
+秘境里捡回来的多半是<b>残兵</b>（属性残缺、带 1~2 条废词条）。唯一把它变强的方式：
+往锻炉里塞一件<b>残兵</b> + 一件与它<b>相生或相合</b>的引材，然后祈祷。
+</p>
+
+<div class="flow">
+  <b>残兵</b><span class="arrow">→</span>选引材（必须相生 / 同行异阴阳）<span class="arrow">→</span>
+  <b>掷骰</b><span class="arrow">→</span>结果落在四档<span class="arrow">→</span>出器
+</div>
+
+<table>
+  <tr><th>档位</th><th>概率</th><th>结果</th></tr>
+  <tr><td>大成功 · 化生</td><td class="num">15%</td><td>继承主材属性，并<b>生成一条相生子行词条</b>（可跨行，直接补劫位）</td></tr>
+  <tr><td>成功 · 承气</td><td class="num">40%</td><td>继承主材属性 + 引材的一条词条</td></tr>
+  <tr><td>平常 · 残存</td><td class="num">35%</td><td>仍是残兵，词条随机洗一次（不亏不赚）</td></tr>
+  <tr><td>失败 · 爆炉</td><td class="num">10%</td><td>出<b>煞器</b>：属性极高但自带每回合自损，只能走魔道</td></tr>
+</table>
+
+<p>
+<b>阴阳决定纯度：</b>主材与引材<b>同阴阳</b> → 词条纯化（数值 +20%，但不会出跨行）；
+<b>异阴阳</b> → 词条数翻倍，但全部随机。想稳妥就同阴阳，想赌跨行就异阴阳。
+</p>
+
+<div class="note">
+  概率表故意让"爆炉"只有 10%——因为它产出的煞器是本作最贵的东西之一：
+  战力天花板高、市价高、但只有魔道流派能穿。玩家会主动去赌，而不是被动挨打。
+</div>
+
+<h2>六 · 秘境与机缘</h2>
+
+<h3>秘境（矿洞替代）</h3>
+<p>
+分层，每层对应一行属性偏向（灵气浓度）。层数越深，元件品级越高、连珠组合越完整。
+每 10 层一个<b>秘境主</b>，掉落该层"完整传承"——一件自带三项关系的高阶装备，直接决定流派。
+</p>
+
+<h3>机缘（钓鱼/拾荒替代）</h3>
+<p>
+"走在路边就捡到"是世界观的核心体验，必须真的做进系统：
+每日刷新 1~3 个随机机缘点（枯井、断碑、陨坑、老树下），
+用小游戏（探脉 / 掘土 / 问卜）判定，可能得到残兵、断章（功法）、灵材，也可能什么都没有。
+</p>
+
+<p><b>保底机制：</b>连续 5 天空手 → 次日必出"仙缘"事件（稀有残兵 + 一段剧情）。防止玩家体验断层。</p>
+
+<h2>七 · 四季轮转：五季而非四季</h2>
+
+<p>
+不用春夏秋冬，用<b>五行五季</b>，每季 21 天，一年 105 天。每季灵气偏向一行：
+</p>
+
+<table>
+  <tr><th>季</th><th>主气</th><th>对玩法的影响</th></tr>
+  <tr><td>木季 · 生发</td><td>木</td><td>灵田产出翻倍，秘境木行装备爆率 +50%</td></tr>
+  <tr><td>火季 · 炎上</td><td>火</td><td>妖兽潮来袭，战斗掉落提升，锻炉成功率 +5%</td></tr>
+  <tr><td>土季 · 承载</td><td>土</td><td>建筑升级打折，坊市交易税减半</td></tr>
+  <tr><td>金季 · 肃杀</td><td>金</td><td>装备耐久消耗快，但残兵出率高（适合炼器）</td></tr>
+  <tr><td>水季 · 归藏</td><td>水</td><td>秘境深层解锁，机缘点数量翻倍</td></tr>
+</table>
+
+<p>
+这个设计顺带解决了经营类游戏的经济周期问题：<b>每季市价自然波动</b>，
+玩家会囤货等季，而不是无限刷。拍卖行的价格曲线不需要额外算法，跟着季节走就是真的。
+</p>
+
+<h2>八 · 经济：坊市与拍卖行</h2>
+
+<div class="grid2">
+  <div class="card">
+    <h4>坊市（日常）</h4>
+    <p>NPC 固定摊位，日价随季节与流派热度浮动。买灵材、卖残兵。</p>
+  </div>
+  <div class="card">
+    <h4>拍卖行（每季末）</h4>
+    <p>玩家挂单，NPC 竞价。出价由「品级 + 流派热度 + 缺口匹配」三项决定。</p>
+  </div>
+</div>
+
+<p><b>流派热度</b>是本作最有意思的经济变量：每个季度全服（或本机世界）随机 2 个门派"当红"，
+对应装备价格上涨 60%，玩家会主动改配装去迎合风口——但配装一改，劫位也变了。</p>
+
+<p>
+<b>单机拍卖的解法：</b>不需要真人。给每个 NPC 一个"需求画像"（他缺哪两行），
+出价时按缺口匹配度加价。这样玩家的稀世装备真的会被"抢"，而且抢得有道理。
+</p>
+
+<h2>九 · 与星露谷的对照表</h2>
+
+<table>
+  <tr><th>星露谷</th><th>《拾遗》</th><th>改动理由</th></tr>
+  <tr><td>农场</td><td>洞府（灵田 / 灵脉 / 丹房 / 锻炉）</td><td>保留经营节奏，接入属性产出</td></tr>
+  <tr><td>矿洞</td><td>秘境（分行分层）</td><td>挖宝核心，直接决定装备池</td></tr>
+  <tr><td>钓鱼</td><td>探脉 / 机缘</td><td>低频高惊喜，对应"路边捡到仙缘"</td></tr>
+  <tr><td>社区中心</td><td>天机阁（修复传承）</td><td>终局目标：解锁第五槽 → 大周天</td></tr>
+  <tr><td>结婚</td><td>道侣（可双向供气）</td><td>双修给一个"借对方行"的机制，补劫位</td></tr>
+  <tr><td>节日</td><td>拍卖大会 / 论道</td><td>经济与人脉的双高峰</td></tr>
+  <tr><td>四季</td><td>五季（五行）</td><td>与核心系统同构</td></tr>
+</table>
+
+<h2>十 · 一日的循环</h2>
+
+<div class="flow">
+  <b>晨</b>收灵田 / 看天气与灵气偏向<span class="arrow">→</span>
+  <b>昼</b>下秘境 or 探机缘（体力消耗）<span class="arrow">→</span>
+  <b>夕</b>回洞府锻炉合成<span class="arrow">→</span>
+  <b>夜</b>打坐（修为）+ 挂拍卖单<span class="arrow">→</span>
+  <b>次日</b>
+</div>
+
+<p>
+关键节奏：<b>白天负责"拿到什么"，晚上负责"变成什么"</b>。
+白天是随机的（秘境运气），晚上是确定的（打造决策）。一随机一确定，玩家的掌控感刚好。
+</p>
+
+<h2>十一 · 开发顺序（MVP 建议）</h2>
+
+<table>
+  <tr><th>优先级</th><th>模块</th><th>验收标准</th></tr>
+  <tr><td><b>P0</b></td><td>元件系统 + 三定律结算 + 三槽配装 UI</td><td>能验证 8 门派确实打出不同手感</td></tr>
+  <tr><td><b>P0</b></td><td>秘境一层 + 掉落 + 一键配装</td><td>30 分钟内能凑出第一个顺生链</td></tr>
+  <tr><td><b>P1</b></td><td>锻炉合成（四档概率 + 阴阳分化）</td><td>玩家愿意为一件残兵刷 3 次引材</td></tr>
+  <tr><td><b>P1</b></td><td>坊市买卖 + 季末拍卖 + 流派热度</td><td>经济能自转，不需要外挂产出</td></tr>
+  <tr><td><b>P2</b></td><td>五季气候 + 灵田 + 机缘点</td><td>形成"经营"而非"刷子"</td></tr>
+  <tr><td><b>P2</b></td><td>天机阁 / 第五槽 / 大周天</td><td>终局目标成立</td></tr>
+</table>
+
+<div class="note">
+  <b>最先要做的其实是一个 30 秒原型：</b>三槽拖拽 + 实时显示"关系指纹 + 缺位 + 当前倍率"。
+  这个原型能验证整个游戏的乐趣是否成立——如果玩家在拖拽三件装备时眼睛会亮，这游戏就成了。
+</div>
+
+<footer>
+  《拾遗》设计圣经 v0.1 · 2026-11-05 · 组合数学已枚举验证：220 / 1000 / 8
+</footer>
+
+</div>
+</body>
+</html>

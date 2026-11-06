@@ -1,0 +1,24 @@
+{
+  "name": "shiyi",
+  "version": "0.7.0",
+  "private": true,
+  "type": "module",
+  "description": "拾遗 · 试炼台 —— 三才配装 / 掉宝打造 / 回合制修仙 Roguelite",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "node tools/check.js",
+    "check:quiet": "node tools/check.js --quiet",
+    "sim": "node tools/sim.js",
+    "sim:long": "node tools/sim.js 8 60",
+    "sim:seed": "node tools/sim.js 8 60 --seed=7",
+    "verify": "npm run check && npm run sim"
+  },
+  "keywords": ["game", "roguelite", "canvas", "pixel"],
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "vite": "^5.4.0",
+    "vite-plugin-singlefile": "^2.0.0"
+  }
+}

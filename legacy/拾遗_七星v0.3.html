@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>拾遗 · 七星 v0.3</title>
+<style>
+  :root{
+    --paper:#f4efe2;--paper2:#e8dfc9;--ink:#241f18;--ink2:#6b6154;
+    --line:#c9bda2;--jade:#2f6b52;--cin:#a83b2c;--gold:#a8811f;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--paper);color:var(--ink);
+    font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",monospace;
+    font-size:13px;line-height:1.6;user-select:none;
+    background-image:linear-gradient(rgba(201,189,162,.22) 1px,transparent 1px),linear-gradient(90deg,rgba(201,189,162,.22) 1px,transparent 1px);
+    background-size:16px 16px;
+  }
+  .app{max-width:1180px;margin:0 auto;padding:12px}
+  .top{display:flex;align-items:center;gap:14px;border:2px solid var(--ink);background:var(--paper2);padding:7px 12px;margin-bottom:10px;flex-wrap:wrap}
+  .logo{font-size:16px;font-weight:800;letter-spacing:4px}
+  .stat{font-size:12px;color:var(--ink2)}
+  .stat b{color:var(--ink)}
+  .spacer{flex:1}
+  button{font-family:inherit;font-size:12px;padding:5px 12px;border:2px solid var(--ink);background:var(--paper);color:var(--ink);cursor:pointer;letter-spacing:1px}
+  button:hover{background:var(--ink);color:var(--paper)}
+  button:disabled{opacity:.3;cursor:not-allowed}
+  button.sm{padding:1px 6px;font-size:10px;border-width:1px;letter-spacing:0}
+  .main{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
+  canvas{display:block;border:3px solid var(--ink);image-rendering:pixelated;background:#15120e}
+  .right{flex:1;min-width:380px;display:flex;flex-direction:column;gap:8px}
+  .panel{border:2px solid var(--ink);background:var(--paper2);padding:9px 11px}
+  .ph{display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:2px;color:var(--ink2);margin-bottom:7px}
+  .ph:after{content:"";flex:1;height:1px;background:var(--line)}
+  /* 七星环 */
+  .ring{position:relative;width:300px;height:300px;margin:0 auto}
+  .ring svg{position:absolute;inset:0;pointer-events:none}
+  .star{position:absolute;width:52px;height:52px;margin:-26px 0 0 -26px;border:2px dashed var(--line);background:var(--paper);cursor:pointer;
+        display:flex;flex-direction:column;align-items:center;justify-content:center;transition:.1s;z-index:2}
+  .star.filled{border-style:solid;border-color:var(--ink)}
+  .star:hover{background:#fffdf7;transform:scale(1.06)}
+  .star .el{font-size:20px;font-weight:700;line-height:1;font-family:"STKaiti","KaiTi",serif}
+  .star .num{font-size:8.5px;color:var(--ink2);line-height:1.2;text-align:center}
+  .star .mul{position:absolute;bottom:-14px;font-size:10px;font-weight:700;color:var(--gold);white-space:nowrap;text-shadow:0 0 3px #f4efe2,0 0 3px #f4efe2}
+  .core{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;z-index:1}
+  .core .big{font-size:30px;font-weight:800;letter-spacing:-1.5px;line-height:1.1}
+  .core .lbl{font-size:10px;color:var(--ink2);letter-spacing:1px;margin-top:6px}
+  /* 属性 */
+  .attrs{display:grid;grid-template-columns:repeat(4,1fr);gap:3px 8px;font-size:11.5px;margin-top:8px}
+  .attrs div{display:flex;justify-content:space-between;border-bottom:1px dotted var(--line)}
+  .attrs span{color:var(--ink2)}
+  .attrs b{font-weight:700}
+  /* 行囊 */
+  .bag{display:flex;gap:5px;flex-wrap:wrap;min-height:62px;margin-top:6px}
+  .item{width:84px;border:2px solid var(--line);background:var(--paper);padding:4px 3px;text-align:center;position:relative;cursor:pointer}
+  .item:hover{border-color:var(--gold)}
+  .item .el{font-size:16px;font-weight:700;line-height:1.1;font-family:"STKaiti","KaiTi",serif}
+  .item .n{font-size:8.5px;color:var(--ink2)}
+  .item .v{font-size:9px;color:var(--jade);line-height:1.35}
+  .item .v i{font-style:normal;color:var(--cin)}
+  .item.broken{border-style:dashed}
+  .item .act{display:flex;gap:2px;justify-content:center;margin-top:2px}
+  .mask{position:fixed;inset:0;background:rgba(36,31,24,.6);display:none;align-items:center;justify-content:center;z-index:50}
+  .mask.on{display:flex}
+  .modal{background:var(--paper);border:3px solid var(--ink);padding:16px 20px;max-width:560px;width:92%;max-height:86vh;overflow-y:auto}
+  .modal h3{margin:0 0 8px;font-size:15px;letter-spacing:2px}
+  .modal p{margin:5px 0;font-size:12.5px;color:var(--ink2)}
+  .modal .row{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+  .tip{font-size:11px;color:var(--ink2);margin-top:6px;line-height:1.65}
+  .sub2{font-size:10.5px;color:var(--ink2)}
+  .cmd{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  @media(max-width:960px){.right{min-width:100%}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="top">
+    <div class="logo">拾 遗 · 七 星</div>
+    <div class="stat">第 <b id="wave">1</b> 波</div>
+    <div class="stat">最高 <b id="best">0</b></div>
+    <div class="spacer"></div>
+    <div class="stat">难度
+      <select id="diff" onchange="setDiff()" style="font-family:inherit;font-size:12px;border:1px solid var(--line);background:var(--paper);padding:2px 4px">
+        <option value="0.7">练气 · 易</option>
+        <option value="1" selected>筑基 · 常</option>
+        <option value="1.5">金丹 · 难</option>
+        <option value="2.2">元婴 · 苦</option>
+      </select>
+    </div>
+    <button onclick="showHelp()">玩法</button>
+    <button onclick="resetAll()">重来</button>
+  </div>
+
+  <div class="main">
+    <div>
+      <canvas id="cv" width="620" height="360"></canvas>
+      <div class="tip" style="width:620px;display:flex;justify-content:space-between">
+        <span>点敌人切换目标，点「出招」让七颗星依次落下。</span>
+        <span id="hint" style="color:var(--cin)"></span>
+      </div>
+    </div>
+
+    <div class="right">
+      <div class="panel">
+        <div class="ph">七 星 环 <span style="letter-spacing:0">（金线相生 · 红虚线相克）</span>
+          <button class="sm" onclick="tidyRing()" style="margin-left:6px">理顺</button>
+        </div>
+        <div class="ring" id="ring">
+          <svg id="links" width="300" height="300"></svg>
+          <div class="core">
+            <div class="big" id="totalmul">×1.00</div>
+            <div class="lbl" id="ringlbl">七曜未成</div>
+          </div>
+        </div>
+        <div class="attrs" id="attrs"></div>
+      </div>
+
+      <div class="panel">
+        <div class="ph">出 手</div>
+        <div class="cmd">
+          <button id="btnTurn" onclick="playerTurn()" style="padding:8px 26px;font-size:14px">出 招</button>
+          <span class="sub2" id="turninfo">七颗星将按环序依次落下</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:10px">
+    <div class="ph">兵 匣 <span class="sub2" id="bagcnt"></span></div>
+    <div class="bag" id="bag"></div>
+  </div>
+</div>
+
+<div class="mask" id="mask"><div class="modal" id="modal"></div></div>
+
+<script>
+/* ==========================================================
+   拾遗 · 七星 v0.3
+   7 槽 = 7 技能位。相邻相生则两两增幅，三连相生触发合击。
+   装备只有两个数：+攻 / +血。
+   ========================================================== */
+
+const XING=['木','火','土','金','水'];
+const SHENG={木:'火',火:'土',土:'金',金:'水',水:'木'};
+const KE={木:'土',土:'水',水:'火',火:'金',金:'木'};
+const COL={木:'#4d8a5e',火:'#b8432f',土:'#a8811f',金:'#5b7c96',水:'#6b4a7a'};
+
+/* 相邻关系系数 */
+const RMUL={生:1.5, 逆生:1.0, 比和:1.2, 克:0.6};
+const RCOL={生:'#c9a227', 逆生:'#8d8474', 比和:'#6b9a7a', 克:'#a83b2c'};
+
+/* 五行技能性格 */
+const SKILL={
+  木:{name:'藤缚',dmg:0.85, extra:'heal',  desc:'造成伤害并回复自身气血'},
+  火:{name:'炎爆',dmg:1.55, extra:'burn',  desc:'伤害最高，附带灼烧'},
+  土:{name:'壁障',dmg:0.75, extra:'shield',desc:'伤害较低，给自己加护盾'},
+  金:{name:'锋斩',dmg:1.30, extra:'pierce',desc:'无视部分护盾与防御'},
+  水:{name:'寒蚀',dmg:1.00, extra:'slow',  desc:'附加冰缓，降低敌人出手'},
+};
+
+/* ---------- 状态 ---------- */
+const G={
+  wave:1, best:0, diff:1,
+  bag:[], ring:[null,null,null,null,null,null,null],
+  uid:1, turn:0, busy:false, running:true,
+  php:1, pmaxhp:1, shield:0
+};
+let mobs=[], target=0, sel=null;   // sel: {kind:'ring',i} | {kind:'bag',id}
+
+/* ---------- 装备 ---------- */
+const GNAME=['','凡品','灵品','宝品','仙品','道品'];
+function makeItem(wave){
+  const x=XING[Math.floor(Math.random()*5)];
+  const y=Math.random()<0.5?'阳':'阴';
+  let grade=1+Math.floor(Math.random()*2)+Math.floor(wave/5);
+  grade=Math.max(1,Math.min(5,grade));
+  const broken=Math.random()<0.45;
+  const g=broken?grade-1:grade;
+  const atk=Math.round((2+g*2.2)*(0.8+Math.random()*0.6));
+  const hp=Math.round((10+g*9)*(0.8+Math.random()*0.6));
+  return {id:G.uid++,x,y,grade,broken,atk,hp,
+    name:(broken?'残·':'')+y+x+'器'};
+}
+
+/* ---------- 相邻关系 ---------- */
+function relOf(a,b){
+  if(!a||!b) return null;
+  if(a.x===b.x) return '比和';
+  if(SHENG[a.x]===b.x) return '生';
+  if(SHENG[b.x]===a.x) return '逆生';
+  return '克';
+}
+
+/* ---------- 七星结算 ---------- */
+function evalRing(){
+  const r=G.ring;
+  const n=7;
+  const links=[];               // links[i] = i 与 i+1 的关系
+  for(let i=0;i<n;i++){
+    const a=r[i], b=r[(i+1)%n];
+    links.push(relOf(a,b));
+  }
+  // 每颗星的倍率 = 左关系 × 右关系
+  const starMul=[];
+  for(let i=0;i<n;i++){
+    const left=links[(i-1+n)%n];   // i-1 → i
+    const right=links[i];          // i → i+1
+    let m=1;
+    if(left)  m*=RMUL[left];
+    if(right) m*=RMUL[right];
+    starMul.push(m);
+  }
+  // 三连相生：连续三颗，两段都是「生」
+  const combo=[];
+  for(let i=0;i<n;i++){
+    const a=links[i], b=links[(i+1)%n];
+    if(a==='生'&&b==='生') combo.push(i);
+  }
+  // 三才合击：被 combo 覆盖的星，额外 ×1.5
+  const inCombo=new Array(n).fill(false);
+  combo.forEach(i=>{ inCombo[i]=true; inCombo[(i+1)%n]=true; inCombo[(i+2)%n]=true; });
+
+  let allMul=1, filled=0;
+  for(let i=0;i<n;i++){ if(r[i]) filled++; }
+  if(filled===n){
+    // 周天：七段全部相生不现实，改为「相生段数 ≥5」
+    const ok=links.filter(x=>x==='生').length;
+    if(ok>=5) allMul=2.0;
+  }
+  return {links, starMul, combo, inCombo, allMul, filled};
+}
+
+/* ---------- 属性 ---------- */
+function calcStats(){
+  const e=evalRing();
+  let atk=12, hp=140;
+  G.ring.forEach(it=>{ if(it){ atk+=it.atk; hp+=it.hp; } });
+  // 阴阳济：全阳或全阴 → 气血上限 -30%
+  const ys=G.ring.filter(Boolean).map(i=>i.y);
+  const allYang = ys.length===7 && ys.every(y=>y==='阳');
+  const allYin  = ys.length===7 && ys.every(y=>y==='阴');
+  const yyMul = (allYang||allYin)?0.7:1;
+  return {e, atk, hp:Math.round(hp*yyMul), allYang, allYin, yyMul};
+}
+
+/* ---------- 单颗星的伤害 ---------- */
+function starDamage(i, st){
+  const it=G.ring[i];
+  if(!it) return null;
+  const e=st.e;
+  const skill=SKILL[it.x];
+  const base=(st.atk)*0.34;             // 七颗星分摊攻击力
+  let d = base * skill.dmg * e.starMul[i] * e.allMul;
+  if(e.inCombo[i]) d*=1.5;
+  if(it.y==='阳') d*=1.15; else d*=0.9;
+  return {dmg:Math.round(d), skill, star:it};
+}
+
+/* ---------- 敌人 ---------- */
+const MOBS=['山魈','赤睛狼','骨蛭','石傀儡','魇鸦','腐道人'];
+function spawnWave(){
+  const n = G.wave<6 ? 2 : 3;
+  mobs=[];
+  for(let i=0;i<n;i++){
+    const d=G.diff;
+    const hp=Math.round((130+G.wave*65)*d);
+    mobs.push({
+      name:MOBS[Math.floor(Math.random()*MOBS.length)],
+      hp, maxhp:hp,
+      atk: Math.round((9+G.wave*2.2)*d*10)/10,
+      x: 0, y: 0, hx:0, hurt:0, atkAnim:0, dead:false, slow:0
+    });
+  }
+  layoutMobs();
+  target = 0;
+  G.php = G.pmaxhp = calcStats().hp;
+  G.shield = 0;
+  G.turn = 1;
+  refresh();
+}
+function layoutMobs(){
+  const n=mobs.length;
+  const xs = n===1?[430]:n===2?[370,500]:[330,430,530];
+  mobs.forEach((m,i)=>{ m.x=xs[i]; m.y=GROUND; });
+}
+
+/* ---------- 画布 ---------- */
+const cv=document.getElementById('cv');
+const ctx=cv.getContext('2d');
+ctx.imageSmoothingEnabled=false;
+const GROUND=268;
+const PLAYER_X=170;
+
+let shake=0, parts=[], floats=[], hitFlash=0, playerAnim=0, pHurt=0, bolt=null;
+
+function drawBG(){
+  const g=ctx.createLinearGradient(0,0,0,GROUND);
+  g.addColorStop(0,'#14161d'); g.addColorStop(.65,'#1e2028'); g.addColorStop(1,'#2c2a2c');
+  ctx.fillStyle=g; ctx.fillRect(0,0,cv.width,GROUND);
+  const layers=[{c:'#1b1d24',h:120,o:0},{c:'#22242c',h:86,o:40},{c:'#282a30',h:58,o:90}];
+  layers.forEach((L,li)=>{
+    ctx.fillStyle=L.c; ctx.beginPath(); ctx.moveTo(-40,GROUND);
+    for(let i=0;i<=8;i++){
+      const bx=-40+i*90+L.o, bh=L.h*(.6+((i*47+li*31)%70)/100);
+      ctx.lineTo(bx,GROUND-bh); ctx.lineTo(bx+45,GROUND-bh*.55);
+    }
+    ctx.lineTo(cv.width+40,GROUND); ctx.fill();
+  });
+  ctx.save(); ctx.globalAlpha=.85; ctx.fillStyle='#efe7cd';
+  ctx.beginPath(); ctx.arc(520,52,15,0,7); ctx.fill();
+  ctx.fillStyle='#14161d'; ctx.beginPath(); ctx.arc(527,46,13,0,7); ctx.fill(); ctx.restore();
+  ctx.fillStyle='#241f1a'; ctx.fillRect(0,GROUND,cv.width,16);
+  ctx.fillStyle='#191510'; ctx.fillRect(0,GROUND+16,cv.width,cv.height-GROUND-16);
+  ctx.fillStyle='#332b22';
+  for(let x=0;x<cv.width;x+=22) ctx.fillRect(x,GROUND,11,2);
+  for(let i=0;i<26;i++){
+    const x=(i*61+17)%cv.width, h=3+((i*29)%4);
+    ctx.fillStyle='#20281f';
+    ctx.fillRect(x,GROUND-h,1.5,h); ctx.fillRect(x+3,GROUND-h+1,1.5,h-1);
+  }
+}
+
+function drawMan(x,footY,S,body,hair,tint){
+  ctx.save(); ctx.translate(x,footY);
+  ctx.fillStyle='rgba(0,0,0,.4)';
+  ctx.beginPath(); ctx.ellipse(0,2,S*2.2,S*.6,0,0,7); ctx.fill();
+  ctx.fillStyle='#20293a';
+  ctx.fillRect(-S*1.3,-S*2.0,S*1.0,S*2.0); ctx.fillRect(S*.3,-S*2.0,S*1.0,S*2.0);
+  ctx.fillStyle=body; ctx.fillRect(-S*1.6,-S*4.8,S*3.2,S*3.0);
+  ctx.fillStyle='rgba(255,255,255,.16)'; ctx.fillRect(-S*.7,-S*4.8,S*1.4,S*1.1);
+  ctx.fillStyle='#8a7a4a'; ctx.fillRect(-S*1.6,-S*2.6,S*3.2,S*.45);
+  ctx.fillStyle='#e6cdaa'; ctx.fillRect(-S*1.0,-S*6.4,S*2.0,S*1.7);
+  ctx.fillStyle=hair; ctx.fillRect(-S*1.15,-S*6.8,S*2.3,S*.8); ctx.fillRect(-S*1.15,-S*6.4,S*.35,S*.9);
+  ctx.fillStyle='#1e1a14'; ctx.fillRect(-S*.5,-S*5.7,S*.35,S*.4); ctx.fillRect(S*.2,-S*5.7,S*.35,S*.4);
+  ctx.fillStyle='#cfc7b2'; ctx.fillRect(S*1.7,-S*5.4,S*.3,S*3.4);
+  ctx.fillStyle='#8a7a4a'; ctx.fillRect(S*1.45,-S*2.3,S*.85,S*.35);
+  if(tint){
+    ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.4;
+    ctx.fillStyle=tint; ctx.fillRect(-S*1.8,-S*7.0,S*3.9,S*7.1); ctx.restore();
+  }
+  ctx.restore();
+}
+
+function drawPlayer(){
+  const S=8.5;
+  const lunge=playerAnim>0?Math.sin((1-playerAnim/.3)*Math.PI)*36:0;
+  drawMan(PLAYER_X+lunge,GROUND,S,'#2f4055','#241f18',pHurt>0?'#8a4a3a':null);
+}
+
+function drawMob(m,idx){
+  if(m.dead) return;
+  const lunge=m.atkAnim>0?Math.sin((1-m.atkAnim/.28)*Math.PI)*-28:0;
+  const x=m.x+(m.hx||0)+lunge;
+  const S=8;
+  ctx.save(); ctx.translate(x,GROUND);
+  ctx.fillStyle='rgba(0,0,0,.4)';
+  ctx.beginPath(); ctx.ellipse(0,2,S*2.2,S*.6,0,0,7); ctx.fill();
+  const flash=m.hurt>0;
+  ctx.fillStyle='#4a1c17'; ctx.fillRect(-S*1.1,-S*1.7,S*.85,S*1.7); ctx.fillRect(S*.25,-S*1.7,S*.85,S*1.7);
+  ctx.fillStyle='#6b2620'; ctx.fillRect(-S*1.7,-S*4.8,S*3.4,S*3.1);
+  ctx.fillStyle='#8a2f2a'; ctx.fillRect(-S*1.9,-S*4.8,S*3.8,S*.7);
+  ctx.fillStyle='#5a1f1a'; ctx.fillRect(-S*1.1,-S*6.4,S*2.2,S*1.7);
+  ctx.fillStyle='#c9a227';
+  ctx.beginPath(); ctx.moveTo(-S*1.1,-S*6.4); ctx.lineTo(-S*1.7,-S*7.7); ctx.lineTo(-S*.55,-S*6.4); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(S*1.1,-S*6.4); ctx.lineTo(S*1.7,-S*7.7); ctx.lineTo(S*.55,-S*6.4); ctx.fill();
+  ctx.fillStyle='#f0c040'; ctx.fillRect(-S*.7,-S*5.7,S*.45,S*.4); ctx.fillRect(S*.25,-S*5.7,S*.45,S*.4);
+  if(flash){
+    ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.45;
+    ctx.fillStyle='#a03a2a'; ctx.fillRect(-S*2.0,-S*7.9,S*4.0,S*8.0); ctx.restore();
+  }
+  ctx.restore();
+
+  const bw=76, bx=x-bw/2, by=GROUND-S*9.0;
+  // 选中标记
+  if(idx===target){
+    ctx.strokeStyle='#ffd166'; ctx.lineWidth=2;
+    ctx.strokeRect(bx-7,by-17,bw+14,36);
+    ctx.fillStyle='#ffd166'; ctx.font='9px monospace'; ctx.textAlign='center';
+    ctx.fillText('▼',x,by-20); ctx.textAlign='left';
+  }
+  ctx.fillStyle='rgba(0,0,0,.7)'; ctx.fillRect(bx-2,by-2,bw+4,11);
+  ctx.fillStyle='#3a1a17'; ctx.fillRect(bx,by,bw,7);
+  ctx.fillStyle='#d4584a'; ctx.fillRect(bx,by,Math.max(0,m.hp/m.maxhp)*bw,7);
+  ctx.fillStyle='#c9bda2'; ctx.font='10px monospace'; ctx.textAlign='center';
+  ctx.fillText(m.name,x,by-6);
+  ctx.fillStyle='#8d8474'; ctx.font='9px monospace';
+  ctx.fillText(Math.max(0,Math.round(m.hp)),x,by+19);
+  ctx.textAlign='left';
+}
+
+function drawHUD(){
+  const w=200,x=26,y=300;
+  ctx.fillStyle='rgba(0,0,0,.6)'; ctx.fillRect(x-3,y-3,w+6,14);
+  ctx.fillStyle='#2a1b18'; ctx.fillRect(x,y,w,8);
+  ctx.fillStyle='#5eb37f'; ctx.fillRect(x,y,w*Math.max(0,G.php/G.pmaxhp),8);
+  if(G.shield>0){
+    ctx.fillStyle='rgba(160,200,255,.75)';
+    ctx.fillRect(x,y-6,w*Math.min(1,G.shield/G.pmaxhp),4);
+  }
+  ctx.fillStyle='#c9bda2'; ctx.font='10px monospace';
+  ctx.fillText('气血 '+Math.max(0,Math.round(G.php))+'/'+G.pmaxhp+(G.shield>0?'　盾 '+Math.round(G.shield):''),x,y+22);
+}
+
+function updateVisual(dt){
+  if(shake>0) shake=Math.max(0,shake-dt*2.6);
+  if(hitFlash>0) hitFlash=Math.max(0,hitFlash-dt*3);
+  if(playerAnim>0) playerAnim=Math.max(0,playerAnim-dt);
+  if(pHurt>0) pHurt=Math.max(0,pHurt-dt);
+  mobs.forEach(m=>{
+    if(m.hurt>0) m.hurt=Math.max(0,m.hurt-dt);
+    if(m.hx!==0) m.hx*=Math.pow(.0009,dt);
+    if(m.atkAnim>0) m.atkAnim=Math.max(0,m.atkAnim-dt);
+  });
+  if(bolt){
+    bolt.t+=dt;
+    if(bolt.t>=bolt.dur) bolt=null;
+  }
+  parts.forEach(p=>{ p.t+=dt; p.vy+=560*dt; p.x+=p.vx*dt; p.y+=p.vy*dt; });
+  parts=parts.filter(p=>p.t<p.life);
+  floats.forEach(f=>{ f.t+=dt; f.y-=40*dt; });
+  floats=floats.filter(f=>f.t<f.life);
+}
+
+function render(){
+  const sx=(Math.random()-.5)*shake*20, sy=(Math.random()-.5)*shake*20;
+  ctx.save(); ctx.translate(sx,sy);
+  drawBG();
+  mobs.forEach((m,i)=>drawMob(m,i));
+  drawPlayer();
+  drawHUD();
+
+  if(bolt){
+    const k=bolt.t/bolt.dur;
+    const x=PLAYER_X+40+(bolt.tx-PLAYER_X-40)*k;
+    const y=GROUND-60+(bolt.ty-GROUND+60)*k;
+    const grd=ctx.createRadialGradient(x,y,0,x,y,16);
+    grd.addColorStop(0,'#fff8d0'); grd.addColorStop(1,'rgba(255,209,102,0)');
+    ctx.fillStyle=grd; ctx.beginPath(); ctx.arc(x,y,16,0,7); ctx.fill();
+    ctx.fillStyle=bolt.c; ctx.fillRect(x-4,y-4,8,8);
+  }
+
+  parts.forEach(p=>{
+    ctx.globalAlpha=Math.max(0,1-p.t/p.life);
+    ctx.fillStyle=p.c; ctx.fillRect(p.x,p.y,p.s,p.s);
+  });
+  ctx.globalAlpha=1;
+
+  floats.forEach(f=>{
+    ctx.globalAlpha=Math.max(0,1-Math.pow(f.t/f.life,2));
+    ctx.font=(f.big?'bold 22px':'bold 15px')+' monospace';
+    ctx.fillStyle=f.c; ctx.textAlign='center';
+    ctx.fillText(f.txt,f.x,f.y);
+  });
+  ctx.globalAlpha=1; ctx.textAlign='left';
+
+  if(hitFlash>0){ ctx.fillStyle='rgba(200,40,30,'+(hitFlash*.25)+')'; ctx.fillRect(0,0,cv.width,cv.height); }
+  ctx.restore();
+}
+
+let last=0;
+function loop(t){
+  const dt=Math.min(.05,(t-last)/1000||0);
+  last=t; updateVisual(dt); render();
+  requestAnimationFrame(loop);
+}
+
+/* ---------- 特效工具 ---------- */
+function burst(x,y,n,color){
+  for(let i=0;i<n;i++) parts.push({
+    x,y,vx:(Math.random()-.5)*260,vy:-Math.random()*200-40,
+    life:.5+Math.random()*.3,t:0,c:color,s:2+Math.random()*3});
+}
+function floatText(x,y,txt,color,big){
+  floats.push({x,y,txt,c:color,t:0,life:.95,big:!!big});
+}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+/* ---------- 音效 ---------- */
+let AC=null;
+function sfx(type){
+  try{
+    if(!AC) AC=new (window.AudioContext||window.webkitAudioContext)();
+    const t=AC.currentTime, o=AC.createOscillator(), g=AC.createGain();
+    o.connect(g); g.connect(AC.destination);
+    const P={
+      hit:['square',220,90,.05,.10],
+      crit:['sawtooth',460,120,.07,.15],
+      hurt:['triangle',90,50,.06,.16],
+      win:['square',320,700,.05,.25],
+      die:['sawtooth',200,40,.07,.4]
+    }[type]||['square',200,100,.04,.1];
+    o.type=P[0];
+    o.frequency.setValueAtTime(P[1],t);
+    o.frequency.exponentialRampToValueAtTime(P[2],t+P[4]);
+    g.gain.setValueAtTime(P[3],t);
+    g.gain.exponentialRampToValueAtTime(.001,t+P[4]+.02);
+    o.start(t); o.stop(t+P[4]+.03);
+  }catch(e){}
+}
+
+/* ---------- 回合 ---------- */
+async function playerTurn(){
+  if(G.busy || !G.running) return;
+  G.busy=true;
+  const btn=document.getElementById('btnTurn');
+  btn.disabled=true; btn.textContent='星落…';
+
+  const st=calcStats();
+  const e=st.e;
+
+  // 依次落下七颗星
+  for(let i=0;i<7;i++){
+    const it=G.ring[i];
+    if(!it) continue;
+    const alive=mobs.filter(m=>!m.dead);
+    if(!alive.length) break;
+    // 目标若已死，切到下一个
+    if(!mobs[target] || mobs[target].dead){
+      target=mobs.findIndex(m=>!m.dead);
+      if(target<0) break;
+    }
+    const m=mobs[target];
+    const d=starDamage(i,st);
+    if(!d) continue;
+
+    playerAnim=.3;
+    bolt={t:0,dur:.18,tx:m.x,ty:GROUND-60,c:COL[it.x]};
+    await sleep(85);
+
+    m.hp-=d.dmg;
+    m.hurt=.14; m.hx=10; shake=.5;
+    burst(m.x,GROUND-50,8,COL[it.x]);
+    floatText(m.x+(Math.random()-.5)*24, GROUND-72, d.dmg, '#ffe9b0', d.dmg>=st.atk*.6);
+    sfx('hit');
+
+    // 技能附带效果
+    await applyExtra(it,d.skill,m,st);
+    if(m.hp<=0){ m.dead=true; burst(m.x,GROUND-40,20,'#c9a227'); }
+    await sleep(70);
+  }
+
+  await sleep(260);
+  if(mobs.every(m=>m.dead)){ await onWaveClear(); return; }
+
+  // 敌方回合
+  for(const m of mobs){
+    if(m.dead) continue;
+    if(m.slow>0){ m.slow--; floatText(m.x,GROUND-100,'冰缓',"#8fb8c9"); await sleep(160); continue; }
+    m.atkAnim=.26;
+    await sleep(120);
+    let dmg=Math.max(1,m.atk);
+    if(G.shield>0){
+      const absorb=Math.min(G.shield,dmg);
+      G.shield-=absorb; dmg-=absorb;
+    }
+    if(dmg>0){ G.php-=dmg; }
+    pHurt=.16; hitFlash=.45; shake=.5;
+    burst(PLAYER_X+20,GROUND-50,7,'#c94a3a');
+    floatText(PLAYER_X+(Math.random()-.5)*20,GROUND-80,'-'+Math.round(dmg),'#e07a6a');
+    sfx('hurt');
+    refresh();
+    await sleep(200);
+    if(G.php<=0){ await onDeath(); return; }
+  }
+
+  G.turn++;
+  G.busy=false;
+  const b2=document.getElementById('btnTurn');
+  b2.disabled=false; b2.textContent='出 招';
+  refresh();
+}
+
+async function applyExtra(it,skill,m,st){
+  if(it.y==='阴'){
+    // 阴器：效果翻倍，伤害已减
+    if(skill.extra==='heal'){ const h=Math.round(st.atk*.22); G.php=Math.min(G.pmaxhp,G.php+h); floatText(PLAYER_X,GROUND-100,'+'+h,'#6cbb8c'); }
+    if(skill.extra==='shield'){ const s=Math.round(st.atk*.30); G.shield+=s; floatText(PLAYER_X,GROUND-110,'盾+'+s,'#8fb8c9'); }
+    if(skill.extra==='slow'){ m.slow=2; }
+  } else {
+    if(skill.extra==='heal'){ const h=Math.round(st.atk*.12); G.php=Math.min(G.pmaxhp,G.php+h); floatText(PLAYER_X,GROUND-100,'+'+h,'#6cbb8c'); }
+    if(skill.extra==='shield'){ const s=Math.round(st.atk*.16); G.shield+=s; floatText(PLAYER_X,GROUND-110,'盾+'+s,'#8fb8c9'); }
+    if(skill.extra==='slow'){ m.slow=1; }
+    if(skill.extra==='burn'){ m.hp-=Math.round(st.atk*.1); }
+  }
+}
+
+async function onWaveClear(){
+  sfx('win');
+  G.best=Math.max(G.best,G.wave);
+  floatText(310,120,'破','#ffd166',true);
+  // 直接掉落，不弹选择
+  const drop=makeItem(G.wave);
+  if(G.bag.length<14) G.bag.push(drop);
+  G.wave++;
+  await sleep(700);
+  spawnWave();
+  G.busy=false;
+  const b3=document.getElementById('btnTurn');
+  b3.disabled=false; b3.textContent='出 招';
+}
+
+async function onDeath(){
+  G.running=false; G.busy=true;
+  sfx('die'); shake=1.2;
+  floatText(PLAYER_X,GROUND-120,'道消','#e07a6a',true);
+  await sleep(800);
+  document.getElementById('modal').innerHTML=
+    '<h3>道消于此</h3>'+
+    '<p>倒在第 <b>'+G.wave+'</b> 波。历史最高 <b>'+G.best+'</b> 波。</p>'+
+    '<p class="tip">看看是「七星倍率太低」还是「气血不够」。重排七星环试试。</p>'+
+    '<div class="row"><button onclick="restart()">重整旗鼓</button></div>';
+  document.getElementById('mask').classList.add('on');
+}
+
+function restart(){
+  closeModal();
+  G.wave=1; G.running=true; G.busy=false;
+  spawnWave();
+  document.getElementById('btnTurn').disabled=false;
+  refresh();
+}
+
+/* ---------- 布阵 ---------- */
+function equipTo(i,id){
+  const k=G.bag.findIndex(x=>x.id===id);
+  if(k<0) return;
+  const it=G.bag[k];
+  const old=G.ring[i];
+  G.ring[i]=it;
+  G.bag.splice(k,1);
+  if(old) G.bag.push(old);
+  refresh();
+}
+function unequipStar(i){
+  const it=G.ring[i];
+  if(!it) return;
+  G.ring[i]=null; G.bag.push(it);
+  refresh();
+}
+
+/* 点星：第一下选中，第二下交换 / 放入 / 卸下 */
+function clickStar(i){
+  // 手里拿着兵匣里的装备 → 放入
+  if(sel && sel.kind==='bag'){
+    const k=G.bag.findIndex(x=>x.id===sel.id);
+    if(k>=0){
+      const it=G.bag.splice(k,1)[0];
+      const old=G.ring[i];
+      G.ring[i]=it;
+      if(old) G.bag.push(old);
+    }
+    sel=null; refresh(); return;
+  }
+  // 手里拿着一颗星
+  if(sel && sel.kind==='ring'){
+    if(sel.i===i){                       // 点自己 → 卸下
+      const it=G.ring[i];
+      if(it){ G.ring[i]=null; G.bag.push(it); }
+    } else {                             // 点别人 → 交换
+      const t=G.ring[i];
+      G.ring[i]=G.ring[sel.i];
+      G.ring[sel.i]=t;
+    }
+    sel=null; refresh(); return;
+  }
+  // 空手：选中这颗星（空位不选）
+  if(G.ring[i]) sel={kind:'ring',i};
+  refresh();
+}
+function sellItem(id){
+  const k=G.bag.findIndex(x=>x.id===id);
+  if(k<0) return;
+  G.bag.splice(k,1); refresh();
+}
+
+/* ---------- 七星环 UI ---------- */
+const RING_R=100, RING_CX=150, RING_CY=150;
+function starPos(i){
+  const ang=(-90 + i*360/7)*Math.PI/180;
+  return {x:RING_CX+Math.cos(ang)*RING_R, y:RING_CY+Math.sin(ang)*RING_R};
+}
+
+function refresh(){
+  const st=calcStats(), e=st.e;
+  document.getElementById('wave').textContent=G.wave;
+  document.getElementById('best').textContent=G.best;
+
+  /* 星星 */
+  const ring=document.getElementById('ring');
+  ring.querySelectorAll('.star').forEach(n=>n.remove());
+  for(let i=0;i<7;i++){
+    const it=G.ring[i], p=starPos(i);
+    const d=document.createElement('div');
+    d.className='star'+(it?' filled':'');
+    d.style.left=p.x+'px'; d.style.top=p.y+'px';
+    if(it){
+      const dmg=starDamage(i,st);
+      d.innerHTML='<div class="el" style="color:'+COL[it.x]+'">'+it.x+'</div>'+
+        '<div class="num">'+it.y+'·'+GNAME[it.grade]+'</div>'+
+        '<div class="mul">×'+e.starMul[i].toFixed(2)+(e.inCombo[i]?' ✦':'')+'</div>';
+    } else {
+      d.innerHTML='<div class="el" style="color:var(--line)">·</div><div class="num">空位</div>';
+    }
+    if(sel && ((sel.kind==='ring'&&sel.i===i))){
+      d.style.borderColor='var(--cin)'; d.style.background='#fff5f2';
+    }
+    d.onclick=()=>clickStar(i);
+    ring.appendChild(d);
+  }
+
+  /* 连线 */
+  const svg=document.getElementById('links');
+  svg.innerHTML='';
+  const defs=document.createElementNS('http://www.w3.org/2000/svg','defs');
+  defs.innerHTML='<marker id="arw" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">'+
+    '<path d="M0,0 L6,3 L0,6 z" fill="#c9a227"/></marker>';
+  svg.appendChild(defs);
+  for(let i=0;i<7;i++){
+    const a=starPos(i), b=starPos((i+1)%7);
+    const r=e.links[i];
+    const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',a.x); line.setAttribute('y1',a.y);
+    line.setAttribute('x2',b.x); line.setAttribute('y2',b.y);
+    line.setAttribute('stroke',r?RCOL[r]:'#c9bda2');
+    line.setAttribute('stroke-width',r==='生'?3:2);
+    line.setAttribute('opacity',r?0.9:0.3);
+    if(r==='克') line.setAttribute('stroke-dasharray','5 5');
+    if(r==='生') line.setAttribute('marker-end','url(#arw)');
+    svg.appendChild(line);
+  }
+
+  /* 中心 */
+  let sum=0,cnt=0;
+  e.starMul.forEach((m,i)=>{ if(G.ring[i]){ sum+=m; cnt++; } });
+  const avg=cnt?sum/cnt:1;
+  document.getElementById('totalmul').textContent='×'+avg.toFixed(2);
+  document.getElementById('totalmul').style.color=
+    avg>=2?'var(--gold)':avg>=1.4?'var(--jade)':avg>=1?'var(--ink)':'var(--cin)';
+  const kcount=e.links.filter(x=>x==='克').length;
+  let lbl;
+  if(sel) lbl='选 中 · 再点一位';
+  else if(kcount>=3) lbl='相克 '+kcount+' 段 · 重排';
+  else if(e.combo.length) lbl='三才合击 ×'+e.combo.length;
+  else if(cnt===7) lbl='七曜已成';
+  else lbl='七星未满';
+  const lblEl=document.getElementById('ringlbl');
+  lblEl.textContent=lbl;
+  lblEl.style.color = (kcount>=3)?'var(--cin)':(e.combo.length?'var(--gold)':'var(--ink2)');
+
+  /* 属性 */
+  const A=document.getElementById('attrs');
+  const row=(k,v)=>'<div><span>'+k+'</span><b>'+v+'</b></div>';
+  A.innerHTML=
+    row('气血',st.hp)+
+    row('攻击',st.atk)+
+    row('最高星',cnt?('×'+Math.max(...e.starMul.filter((m,i)=>G.ring[i])).toFixed(2)):'—')+
+    row('合击',e.combo.length)+
+    row('相生段',e.links.filter(x=>x==='生').length+'/7')+
+    row('相克段',e.links.filter(x=>x==='克').length+'/7')+
+    row('阴阳',st.allYang||st.allYin?'孤一 ×0.7':'兼备')+
+    row('回合',G.turn);
+
+  /* 兵匣 */
+  const bag=document.getElementById('bag');
+  bag.innerHTML='';
+  document.getElementById('bagcnt').textContent='（'+G.bag.length+'/14）点装备可放入空位';
+  G.bag.forEach(it=>{
+    const d=document.createElement('div');
+    d.className='item'+(it.broken?' broken':'');
+    d.innerHTML='<div class="el" style="color:'+COL[it.x]+'">'+it.x+'</div>'+
+      '<div class="n">'+it.y+'·'+GNAME[it.grade]+(it.broken?'·残':'')+'</div>'+
+      '<div class="v">攻 +'+it.atk+'<br>血 +'+it.hp+'</div>'+
+      '<div class="act"><button class="sm" onclick="event.stopPropagation();pickBag('+it.id+')">拿</button>'+
+      '<button class="sm" onclick="event.stopPropagation();sellItem('+it.id+')">弃</button></div>';
+    if(sel&&sel.kind==='bag'&&sel.id===it.id) d.style.borderColor='var(--cin)';
+    d.onclick=()=>pickBag(it.id);
+    bag.appendChild(d);
+  });
+  if(G.bag.length===0) bag.innerHTML='<div class="sub2">兵匣空空。打赢一波就掉一件。</div>';
+}
+
+function quickEquip(id){
+  const empty=G.ring.findIndex(x=>!x);
+  if(empty<0){ floatText(310,90,'七星已满','#e07a6a'); return; }
+  equipTo(empty,id);
+}
+/* 理顺：按五行相生顺序重排环上已有装备（只排五行，不管数值，不是唯一最优） */
+function tidyRing(){
+  const cur=G.ring.filter(Boolean);
+  if(cur.length<2){ floatText(310,90,'环上不足两件','#e07a6a'); return; }
+  const ORDER=['木','火','土','金','水'];
+  const buckets={};
+  cur.forEach(it=>{ (buckets[it.x]=buckets[it.x]||[]).push(it); });
+  let startIdx=0, bestN=-1;
+  ORDER.forEach((x,i)=>{ const n=(buckets[x]||[]).length; if(n>bestN){bestN=n;startIdx=i;} });
+  const out=[];
+  for(let k=0;k<cur.length;k++){
+    const x=ORDER[(startIdx+k)%5];
+    if(buckets[x]&&buckets[x].length) out.push(buckets[x].shift());
+  }
+  cur.forEach(it=>{ if(out.indexOf(it)<0) out.push(it); });
+  G.ring=out.slice(0,7);
+  while(G.ring.length<7) G.ring.push(null);
+  sel=null;
+  refresh();
+}
+
+function pickBag(id){
+  sel = (sel&&sel.kind==='bag'&&sel.id===id) ? null : {kind:'bag',id};
+  refresh();
+}
+
+/* ---------- 交互 ---------- */
+cv.addEventListener('click',ev=>{
+  const rect=cv.getBoundingClientRect();
+  const mx=(ev.clientX-rect.left)*(cv.width/rect.width);
+  const my=(ev.clientY-rect.top)*(cv.height/rect.height);
+  mobs.forEach((m,i)=>{
+    if(m.dead) return;
+    if(Math.abs(mx-m.x)<44 && my>GROUND-140 && my<GROUND+10) target=i;
+  });
+  refresh();
+});
+
+function setDiff(){
+  G.diff=parseFloat(document.getElementById('diff').value);
+  spawnWave();
+}
+
+function resetAll(){
+  G.wave=1; G.best=0; G.bag=[]; G.ring=[null,null,null,null,null,null,null];
+  G.running=true; G.busy=false;
+  for(let i=0;i<5;i++) G.bag.push(makeItem(1));
+  spawnWave();
+  document.getElementById('btnTurn').disabled=false;
+  refresh();
+}
+
+function closeModal(){ document.getElementById('mask').classList.remove('on'); }
+
+function showHelp(){
+  document.getElementById('modal').innerHTML=
+    '<h3>七星怎么摆</h3>'+
+    '<p><b>七个槽 = 七个技能位。</b>每件装备只给两个数：<b>加攻</b>、<b>加血</b>。</p>'+
+    '<p><b>相邻两件相生</b>，各自威力 ×1.5；<b>相克</b> ×0.6；<b>比和</b> ×1.2。首尾也是邻居，七颗排成一个环。</p>'+
+    '<p>每颗星吃<b>左右两条关系</b>，所以两边都相生 = ×2.25。</p>'+
+    '<p><b>三连相生</b>（如 木→火→土）触发<b>「三才合击」</b>，参与的三颗星再 ×1.5 —— 这就是 1+1&gt;2。</p>'+
+    '<p><b>五行各有性格</b>：火伤害最高、土给盾、木回血、水冰缓、金破防。<b>阴器</b>效果翻倍但伤害略低。</p>'+
+    '<p class="tip">战斗是多怪回合制：点敌人切目标，点「出招」七颗星依次落下，然后怪反击。'+
+    '打不过就回头看环——通常是「相克段太多」或「气血太薄」。</p>'+
+    '<div class="row"><button onclick="closeModal()">布阵</button></div>';
+  document.getElementById('mask').classList.add('on');
+}
+
+/* ---------- 启动 ---------- */
+window.onerror=(m,s,l)=>{ document.title='ERR: '+m+' @'+l; };
+resetAll();
+requestAnimationFrame(loop);
+if(!location.search.includes('nohelp')) showHelp();
+
+/* ---------- 自测钩子（URL 带 auto 时启用） ---------- */
+if(location.search.includes('auto')){
+  while(G.bag.length<7) G.bag.push(makeItem(2));
+  let guard=0;
+  while(G.bag.length && G.ring.some(x=>!x) && guard++<20){
+    const empty=G.ring.findIndex(x=>!x);
+    equipTo(empty, G.bag[0].id);
+  }
+  if(location.search.includes('tidy')) setTimeout(tidyRing,60);
+  setInterval(()=>{
+    const b=document.getElementById('btnTurn');
+    if(b && !b.disabled && G.running && !document.getElementById('mask').classList.contains('on')) b.click();
+  }, 1100);
+}
+</script>
+</body>
+</html>

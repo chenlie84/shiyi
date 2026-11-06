@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>拾遗 · 原型 v0.1</title>
+<style>
+  :root{
+    --paper:#f4efe2;--paper2:#e8dfc9;--ink:#241f18;--ink2:#6b6154;
+    --line:#c9bda2;--jade:#2f6b52;--cin:#a83b2c;--gold:#a8811f;--blue:#38617f;--pur:#6b4a7a;
+  }
+  *{box-sizing:border-box;-webkit-font-smoothing:none}
+  body{
+    margin:0;background:var(--paper);color:var(--ink);
+    font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",monospace;
+    font-size:13px;line-height:1.6;
+    background-image:linear-gradient(rgba(201,189,162,.25) 1px,transparent 1px),linear-gradient(90deg,rgba(201,189,162,.25) 1px,transparent 1px);
+    background-size:16px 16px;
+    user-select:none;
+  }
+  .app{max-width:1120px;margin:0 auto;padding:14px}
+  /* 顶栏 */
+  .top{display:flex;align-items:center;gap:16px;border:2px solid var(--ink);background:var(--paper2);padding:8px 14px;margin-bottom:12px}
+  .logo{font-size:17px;font-weight:800;letter-spacing:4px}
+  .stat{font-size:12px;color:var(--ink2)}
+  .stat b{color:var(--ink);font-size:13px}
+  .spacer{flex:1}
+  /* 主区 */
+  .main{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
+  .left{flex:0 0 auto}
+  canvas{display:block;border:3px solid var(--ink);image-rendering:pixelated;background:#1b1712}
+  .right{flex:1;min-width:340px;display:flex;flex-direction:column;gap:10px}
+  .panel{border:2px solid var(--ink);background:var(--paper2);padding:10px 12px}
+  .ph{display:flex;align-items:center;gap:8px;font-size:12px;letter-spacing:2px;color:var(--ink2);margin-bottom:8px}
+  .ph:after{content:"";flex:1;height:1px;background:var(--line)}
+  /* 三槽 */
+  .slots{display:flex;align-items:center;gap:4px;justify-content:center}
+  .slot{width:78px;height:88px;border:2px dashed var(--line);background:var(--paper);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;position:relative;transition:.1s}
+  .slot.filled{border-style:solid;border-color:var(--ink)}
+  .slot:hover{background:#fffdf7}
+  .slot .pos{position:absolute;top:2px;left:0;right:0;text-align:center;font-size:9px;color:var(--ink2);letter-spacing:2px}
+  .slot .el{font-size:26px;font-weight:700;line-height:1;font-family:"STKaiti","KaiTi",serif}
+  .slot .g{font-size:9px;color:var(--ink2)}
+  .conn{width:44px;text-align:center;font-size:10px;line-height:1.2}
+  .conn .r{font-size:12px;font-weight:700}
+  /* 数据 */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;font-size:12px}
+  .kv{display:flex;justify-content:space-between}
+  .kv span:first-child{color:var(--ink2)}
+  .kv b{font-weight:700}
+  .big{font-size:30px;font-weight:800;letter-spacing:-1px}
+  /* 按钮 */
+  button{font-family:inherit;font-size:12px;padding:5px 12px;border:2px solid var(--ink);background:var(--paper);color:var(--ink);cursor:pointer;letter-spacing:1px}
+  button:hover{background:var(--ink);color:var(--paper)}
+  button:disabled{opacity:.35;cursor:not-allowed}
+  button.sm{padding:1px 6px;font-size:10px;border-width:1px;letter-spacing:0}
+  button.gold{background:var(--gold);border-color:var(--gold);color:#fff}
+  /* 日志 */
+  .log{height:96px;overflow-y:auto;font-size:11.5px;line-height:1.7;color:var(--ink2)}
+  .log div{border-bottom:1px dotted var(--line);padding:1px 0}
+  .log .hi{color:var(--gold);font-weight:700}
+  .log .bad{color:var(--cin)}
+  .log .good{color:var(--jade)}
+  /* 背包 */
+  .bag{display:flex;gap:6px;flex-wrap:wrap;min-height:70px;margin-top:10px}
+  .item{width:74px;border:2px solid var(--line);background:var(--paper);padding:5px 4px;text-align:center;position:relative;cursor:pointer}
+  .item:hover{border-color:var(--gold)}
+  .item .el{font-size:19px;font-weight:700;line-height:1.1;font-family:"STKaiti","KaiTi",serif}
+  .item .n{font-size:9px;color:var(--ink2)}
+  .item .act{display:flex;gap:2px;justify-content:center;margin-top:3px}
+  .item .st{font-size:8.5px;letter-spacing:1px}
+  .item.broken{border-style:dashed}
+  .item.sel{border-color:var(--cin);box-shadow:0 0 0 2px rgba(168,59,44,.25)}
+  /* 弹层 */
+  .mask{position:fixed;inset:0;background:rgba(36,31,24,.55);display:none;align-items:center;justify-content:center;z-index:50}
+  .mask.on{display:flex}
+  .modal{background:var(--paper);border:3px solid var(--ink);padding:18px 22px;max-width:520px;width:92%}
+  .modal h3{margin:0 0 6px;font-size:16px;letter-spacing:2px}
+  .modal p{margin:6px 0;font-size:12.5px;color:var(--ink2)}
+  .modal .row{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+  .tip{font-size:11px;color:var(--ink2);margin-top:8px;line-height:1.7}
+  @media(max-width:900px){.right{min-width:100%}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="top">
+    <div class="logo">拾 遗</div>
+    <div class="stat">第 <b id="day">1</b> 天</div>
+    <div class="stat">节气 <b id="season">春·木</b></div>
+    <div class="stat">秘境 <b id="dp">1</b> 层</div>
+    <div class="stat">灵石 <b id="stones">0</b></div>
+    <div class="stat">体力 <b id="stam">20</b>/20</div>
+    <div class="spacer"></div>
+    <button onclick="sleep()">入 定（过一天）</button>
+    <button onclick="openShop()">坊 市</button>
+    <button onclick="showHelp()">玩法</button>
+  </div>
+
+  <div class="main">
+    <div class="left">
+      <canvas id="cv" width="640" height="416"></canvas>
+      <div class="tip" style="width:640px">
+        ↑↓←→ / WASD 移动。撞上岩壁或矿脉即「挖掘」（耗体力 1），撞上妖兽即开战（耗体力 3）。
+      </div>
+    </div>
+
+    <div class="right">
+      <div class="panel">
+        <div class="ph">三才配装 · 天→人→地</div>
+        <div class="slots" id="slots"></div>
+        <div class="grid" style="margin-top:10px">
+          <div class="kv"><span>总倍率</span><b class="big" id="mul">×1.00</b></div>
+          <div class="kv"><span>煞值</span><b id="sha">0.00</b></div>
+          <div class="kv"><span>相邻</span><b id="rels">—</b></div>
+          <div class="kv"><span>流派</span><b id="school">—</b></div>
+          <div class="kv"><span>阴阳</span><b id="yy">—</b></div>
+          <div class="kv"><span>劫位</span><b id="jie">—</b></div>
+        </div>
+        <div style="text-align:right;margin-top:8px">
+          <button class="sm" onclick="testStrike()">试剑 · 打木桩看伤害</button>
+        </div>
+      </div>
+
+      <div class="panel" style="flex:1">
+        <div class="ph">行迹</div>
+        <div class="log" id="log"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:12px">
+    <div class="ph">行囊 <span style="letter-spacing:0;color:var(--ink2)" id="bagcnt"></span>
+      <button class="sm" onclick="autoEquip()">一键最优配装</button>
+    </div>
+    <div class="bag" id="bag"></div>
+  </div>
+</div>
+
+<div class="mask" id="mask"><div class="modal" id="modal"></div></div>
+
+<script>
+/* ============================================================
+   拾遗 · 原型 v0.1
+   核心：三元配装 → 倍率 → 打怪验证 → 熔铸赌运气
+   ============================================================ */
+
+/* ---------- 五行基础 ---------- */
+const XING = ['木','火','土','金','水'];
+const SHENG = {木:'火',火:'土',土:'金',金:'水',水:'木'};
+const KE    = {木:'土',土:'水',水:'火',火:'金',金:'木'};
+const COL   = {木:'#4d8a5e',火:'#b8432f',土:'#a8811f',金:'#5b7c96',水:'#6b4a7a'};
+const SEASON = [
+  {n:'春·木', x:'木'}, {n:'夏·火', x:'火'}, {n:'长夏·土', x:'土'},
+  {n:'秋·金', x:'金'}, {n:'冬·水', x:'水'}
+];
+
+const MULT = {生:2, 逆生:1, 比和:1, 克:0.25};
+const SHA_LOSS = 0.75;
+
+function relOf(a,b){
+  if(a.x===b.x) return '比和';
+  if(SHENG[a.x]===b.x) return '生';
+  if(SHENG[b.x]===a.x) return '逆生';
+  return '克';
+}
+
+/* ---------- 全局状态 ---------- */
+const G = {
+  day:1, stones:0, stam:20, maxStam:20,
+  depth:1,
+  bag:[], slots:[null,null,null],
+  uid:1, log:[]
+};
+
+function season(){ return SEASON[Math.floor((G.day-1)/30) % 5]; }
+function seasonMul(x){ return season().x===x ? 1.3 : 1.0; }
+
+/* ---------- 生成装备 ---------- */
+const GNAME = ['','凡品','灵品','宝品','仙品','道品'];
+
+function makeItem(depth, forceBroken){
+  const s = season();
+  // 当季五行概率翻倍
+  let x = XING[Math.floor(Math.random()*5)];
+  if(Math.random() < 0.35) x = s.x;
+  const y = Math.random()<0.5 ? '阳' : '阴';
+  let grade = 1 + Math.floor(Math.random()*2) + Math.floor(depth/2);
+  grade = Math.max(1, Math.min(5, grade));
+  const broken = forceBroken !== undefined ? forceBroken : Math.random()<0.55;
+  return {
+    id: G.uid++, x, y, grade, broken,
+    name: (broken?'残·':'') + y + x + '器'
+  };
+}
+
+/* ---------- 战斗与属性 ---------- */
+function effGrade(it){ return it.broken ? Math.max(1, it.grade-1) : it.grade; }
+
+function playerStats(){
+  const eq = G.slots.filter(Boolean);
+  const e = evaluate(G.slots);
+  let hp = 26, atk = 7;
+  eq.forEach(it=>{ hp += effGrade(it)*4; atk += effGrade(it)*1.2; });
+  return {
+    hp: Math.round(hp),
+    atk: Math.round(atk * e.total),
+    baseAtk: Math.round(atk),
+    mult: e.total,
+    e
+  };
+}
+
+/* ---------- 结算（与设计稿一致） ---------- */
+function evaluate(arr){
+  const a=arr[0], b=arr[1], c=arr[2];
+  if(!a || !b || !c){
+    // 缺件时按已装备的两件算，缺的位按 ×1
+    const rs=[]; for(let i=0;i<2;i++){ if(arr[i]&&arr[i+1]) rs.push(relOf(arr[i],arr[i+1])); }
+    let m=1; rs.forEach(r=>m*=MULT[r]);
+    return {r1:rs[0]||'—', r2:rs[1]||'—', m, sha:0, burn:false, total:m, yyAll:false, yyNone:false, partial:true};
+  }
+  const r1=relOf(a,b), r2=relOf(b,c);
+  let m = MULT[r1]*MULT[r2];
+  let sha = 0;
+  if(r1==='克') sha += SHA_LOSS;
+  if(r2==='克') sha += SHA_LOSS;
+  const burn = sha>0 && r2==='生';
+  const raw = m + (burn?sha:0);
+  const yyAll = a.y==='阳'&&b.y==='阳'&&c.y==='阳';
+  const yyNone= a.y==='阴'&&b.y==='阴'&&c.y==='阴';
+  const yyMul = (yyAll||yyNone)?0.5:1;
+  return {r1,r2,m,sha,burn,raw,yyAll,yyNone,yyMul,total:raw*yyMul};
+}
+
+/* ---------- 秘境地图 ---------- */
+const TS = 32, COLS = 20, ROWS = 13;
+const T = {VOID:0, ROCK:1, ORE:2, HERB:3, MOB:4};
+let map = [], px = 1, py = 1, mobs = [];
+
+function genMap(){
+  map = [];
+  for(let y=0;y<ROWS;y++){
+    const row=[];
+    for(let x=0;x<COLS;x++){
+      if(x===0||y===0||x===COLS-1||y===ROWS-1){ row.push(T.ROCK); continue; }
+      const r = Math.random();
+      if(r<0.26) row.push(T.ROCK);
+      else if(r<0.40) row.push(T.ORE);
+      else if(r<0.45) row.push(T.HERB);
+      else row.push(T.VOID);
+    }
+    map.push(row);
+  }
+  // 玩家开局周围清空
+  for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+    const x=2+dx, y=2+dy;
+    if(map[y] && map[y][x]!==undefined) map[y][x]=T.VOID;
+  }
+  px=2; py=2;
+  // 撒怪
+  mobs=[];
+  const n = 1 + Math.floor(Math.random()*2) + Math.floor(G.depth/3);
+  for(let i=0;i<n;i++){
+    let x,y,tries=0;
+    do{ x=2+Math.floor(Math.random()*(COLS-4)); y=2+Math.floor(Math.random()*(ROWS-4)); tries++; }
+    while((map[y][x]!==T.VOID || (Math.abs(x-px)<4&&Math.abs(y-py)<4)) && tries<80);
+    mobs.push({x,y,hp:14+G.depth*9, maxhp:14+G.depth*9, atk:3+Math.floor(G.depth*1.6), name:mobName()});
+  }
+}
+function mobName(){
+  const n=['山魈','赤睛狼','骨蛭','石傀儡','魇鸦','腐道人'];
+  return n[Math.floor(Math.random()*n.length)];
+}
+
+/* ---------- 像素绘制 ---------- */
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+
+function shade(hex, k){
+  const n = parseInt(hex.slice(1),16);
+  let r=(n>>16)&255, g=(n>>8)&255, b=n&255;
+  r=Math.max(0,Math.min(255,Math.round(r*k)));
+  g=Math.max(0,Math.min(255,Math.round(g*k)));
+  b=Math.max(0,Math.min(255,Math.round(b*k)));
+  return '#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
+}
+
+function drawTile(t, cx, cy, x, y){
+  const S=TS;
+  const rnd = ((x*73856093) ^ (y*19349663)) & 7;
+  if(t===T.VOID){
+    ctx.fillStyle = '#241f19'; ctx.fillRect(cx,cy,S,S);
+    ctx.fillStyle = '#2b2520';
+    for(let i=0;i<3;i++){
+      const ox=(rnd*5+i*11)%S, oy=(rnd*7+i*9)%S;
+      ctx.fillRect(cx+ox, cy+oy, 3, 3);
+    }
+  } else if(t===T.ROCK){
+    ctx.fillStyle='#4a4238'; ctx.fillRect(cx,cy,S,S);
+    ctx.fillStyle='#5c5347'; ctx.fillRect(cx,cy,S,4);
+    ctx.fillStyle='#3a342c';
+    ctx.fillRect(cx+4, cy+10, 8, 6);
+    ctx.fillRect(cx+18, cy+18, 9, 7);
+    ctx.fillStyle='#2c2822'; ctx.fillRect(cx,cy+S-3,S,3);
+  } else if(t===T.ORE){
+    ctx.fillStyle='#4a4238'; ctx.fillRect(cx,cy,S,S);
+    ctx.fillStyle='#5c5347'; ctx.fillRect(cx,cy,S,3);
+    const gl = ['#c9a227','#8fb8c9','#b8432f','#6fbf8a'][rnd%4];
+    ctx.fillStyle=gl;
+    ctx.fillRect(cx+9,cy+8,6,6); ctx.fillRect(cx+19,cy+16,5,5); ctx.fillRect(cx+7,cy+20,4,4);
+    ctx.fillStyle=shade(gl,1.4);
+    ctx.fillRect(cx+11,cy+9,3,3); ctx.fillRect(cx+20,cy+17,2,2);
+  } else if(t===T.HERB){
+    ctx.fillStyle='#241f19'; ctx.fillRect(cx,cy,S,S);
+    ctx.fillStyle='#2f6b52';
+    ctx.fillRect(cx+14,cy+12,4,12);
+    ctx.fillRect(cx+8,cy+10,7,4); ctx.fillRect(cx+17,cy+15,7,4);
+    ctx.fillStyle='#4d8a5e';
+    ctx.fillRect(cx+15,cy+11,2,8);
+  }
+}
+
+function drawMob(m){
+  const cx=m.x*TS, cy=m.y*TS;
+  ctx.fillStyle='#241f19'; ctx.fillRect(cx,cy,TS,TS);
+  const bob = Math.sin(Date.now()/300 + m.x)*1.5;
+  ctx.fillStyle='#8a2f2a';
+  ctx.fillRect(cx+8, cy+10+bob, 16, 14);
+  ctx.fillRect(cx+6, cy+14+bob, 20, 7);
+  ctx.fillStyle='#d9b45b';
+  ctx.fillRect(cx+12, cy+14+bob, 3, 3);
+  ctx.fillRect(cx+18, cy+14+bob, 3, 3);
+  // 血条
+  const w = Math.max(0, (m.hp/m.maxhp))*TS;
+  ctx.fillStyle='#000'; ctx.fillRect(cx, cy+2, TS, 3);
+  ctx.fillStyle='#a83b2c'; ctx.fillRect(cx, cy+2, w, 3);
+}
+
+function drawPlayer(){
+  const cx=px*TS, cy=py*TS;
+  const bob = Math.sin(Date.now()/260)*1.2;
+  ctx.fillStyle='#241f19'; ctx.fillRect(cx,cy,TS,TS);
+  // 道袍
+  ctx.fillStyle='#2b3a4a';
+  ctx.fillRect(cx+9, cy+12+bob, 14, 13);
+  ctx.fillStyle='#3f5470';
+  ctx.fillRect(cx+11, cy+13+bob, 10, 5);
+  // 头
+  ctx.fillStyle='#e0c9a6'; ctx.fillRect(cx+11, cy+6+bob, 10, 8);
+  // 发
+  ctx.fillStyle='#2b2520'; ctx.fillRect(cx+10, cy+4+bob, 12, 4);
+  // 眼
+  ctx.fillStyle='#241f19'; ctx.fillRect(cx+13, cy+10+bob, 2, 2); ctx.fillRect(cx+18, cy+10+bob, 2, 2);
+  // 剑
+  ctx.fillStyle='#c9c2b0'; ctx.fillRect(cx+23, cy+10+bob, 2, 12);
+}
+
+function render(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){
+    drawTile(map[y][x], x*TS, y*TS, x, y);
+  }
+  mobs.forEach(m=>{ if(m.hp>0) drawMob(m); });
+  drawPlayer();
+  requestAnimationFrame(render);
+}
+
+/* ---------- 移动与交互 ---------- */
+function move(dx,dy){
+  const nx=px+dx, ny=py+dy;
+  if(nx<0||ny<0||nx>=COLS||ny>=ROWS) return;
+
+  const mob = mobs.find(m=>m.x===nx && m.y===ny && m.hp>0);
+  if(mob){ if(G.stam<3){ log('体力不足，无法应战。','bad'); return; } G.stam-=3; battle(mob); return; }
+
+  const t = map[ny][nx];
+  if(t===T.VOID){ px=nx; py=ny; return; }
+  if(t===T.ROCK||t===T.ORE){
+    if(G.stam<1){ log('体力耗尽，回去入定吧。','bad'); return; }
+    G.stam--;
+    if(t===T.ORE){
+      const it = makeItem(G.depth);
+      addItem(it);
+      log('凿开矿脉，得 <span class="hi">'+it.name+'</span>（'+GNAME[it.grade]+'）','good');
+      map[ny][nx]=T.VOID; px=nx; py=ny;
+    } else {
+      // 岩壁：小概率出残器
+      if(Math.random()<0.36){
+        const it = makeItem(G.depth, true);
+        addItem(it);
+        log('岩缝里卡着一件 <span class="hi">'+it.name+'</span>，抠出来了。','good');
+      }
+      map[ny][nx]=T.VOID; px=nx; py=ny;
+    }
+    return;
+  }
+  if(t===T.HERB){
+    if(G.stam<1){ log('体力耗尽。','bad'); return; }
+    G.stam--;
+    const v = 12 + Math.floor(Math.random()*14) + G.depth*3;
+    G.stones += v;
+    map[ny][nx]=T.VOID; px=nx; py=ny;
+    log('采得灵草，卖得 '+v+' 灵石。','good');
+    return;
+  }
+}
+
+/* ---------- 战斗 ---------- */
+function battle(m){
+  const st = playerStats();
+  let php = st.hp, mhp = m.hp;
+  let rounds = 0, dmgLog = [];
+  while(php>0 && mhp>0 && rounds<20){
+    rounds++;
+    mhp -= st.atk;
+    dmgLog.push(st.atk);
+    if(mhp<=0) break;
+    php -= m.atk;
+  }
+  if(mhp<=0){
+    m.hp = 0;
+    const drop = makeItem(G.depth, Math.random()<0.4);
+    addItem(drop);
+    const gold = 6 + G.depth*3;
+    G.stones += gold;
+    log('斩 '+m.name+'：三才 <b>×'+st.mult.toFixed(2)+'</b>，每击 '+st.atk+' 点，'+rounds+' 回合。',
+        st.mult>=2?'good':'');
+    log('　得 <span class="hi">'+drop.name+'</span>，灵石 +'+gold,'good');
+  } else {
+    m.hp = Math.round(mhp);
+    log('不敌 '+m.name+'：三才只有 <b>×'+st.mult.toFixed(2)+'</b>，每击 '+st.atk+' 点，挨了 '+rounds+' 回合。','bad');
+    log('　若要胜它，至少需要 ×'+ (m.maxhp/(st.baseAtk*Math.ceil(m.maxhp/st.atk))).toFixed(2) +' 以上的倍率。','bad');
+    // 逃回入口
+    px=2; py=2;
+  }
+  refresh();
+}
+
+/* ---------- 背包 ---------- */
+function addItem(it){
+  if(G.bag.length>=16){ log('行囊已满（16/16），先卖掉些东西。','bad'); return; }
+  G.bag.push(it);
+  refresh();
+}
+
+function equipFromBag(id){
+  const idx = G.bag.findIndex(i=>i.id===id);
+  if(idx<0) return;
+  const it = G.bag[idx];
+  const empty = G.slots.findIndex(s=>!s);
+  if(empty>=0){ G.slots[empty]=it; G.bag.splice(idx,1); }
+  else { log('三才位已满，先卸下一件。','bad'); }
+  refresh();
+}
+
+function unequip(slotIdx){
+  const it = G.slots[slotIdx];
+  if(!it) return;
+  G.slots[slotIdx]=null;
+  G.bag.push(it);
+  refresh();
+}
+
+function sellItem(id){
+  const idx = G.bag.findIndex(i=>i.id===id);
+  if(idx<0) return;
+  const it = G.bag[idx];
+  const price = Math.round(Math.pow(it.grade,2)*26 * seasonMul(it.x) * (it.broken?0.45:1));
+  G.stones += price;
+  G.bag.splice(idx,1);
+  log('售出 '+it.name+'，得 '+price+' 灵石。','');
+  refresh();
+}
+
+/* ---------- 熔铸 ---------- */
+let forgeSel = [];
+function toggleForge(id){
+  const i = forgeSel.indexOf(id);
+  if(i>=0) forgeSel.splice(i,1);
+  else { if(forgeSel.length>=2) forgeSel.shift(); forgeSel.push(id); }
+  refresh();
+  openForge();
+}
+
+function openForge(){
+  const items = forgeSel.map(id=>G.bag.find(i=>i.id===id)).filter(Boolean);
+  const box = document.getElementById('modal');
+  if(items.length<2){
+    box.innerHTML = '<h3>熔 炉</h3><p>在行囊里点选两件残器（下方红框），凑齐两件即可开炉。</p>'+
+      '<p class="tip">已选：'+(items.length?items.map(i=>i.name).join(' + '):'无')+'</p>'+
+      '<div class="row"><button onclick="closeModal()">关闭</button></div>';
+  } else {
+    const [a,b] = items;
+    const r = relOf(a,b);
+    const kind = (r==='生'||r==='逆生') ? '相生' : (r==='克'?'相克':'同行');
+    box.innerHTML = '<h3>熔 炉</h3>'+
+      '<p>'+a.name+'（'+GNAME[a.grade]+'） ＋ '+b.name+'（'+GNAME[b.grade]+'）</p>'+
+      '<p>关系：<b>'+kind+'</b>　' +
+      (kind==='相生'?'化生 15% ／ 承气 45% ／ 残存 35% ／ 爆炉 5%'
+      : kind==='相克'?'煞器 30% ／ 废铁 55% ／ 残渣 12% ／ 太极 3%'
+      : '纯化 100%（同阴阳）／ 太极 8%（异阴阳）') + '</p>'+
+      '<div class="row"><button onclick="closeModal()">算了</button>'+
+      '<button class="gold" onclick="doForge()">开 炉</button></div>';
+  }
+  document.getElementById('mask').classList.add('on');
+}
+
+function doForge(){
+  const items = forgeSel.map(id=>G.bag.find(i=>i.id===id)).filter(Boolean);
+  if(items.length<2) return;
+  const [a,b] = items;
+  const r = relOf(a,b);
+  const cross = a.y!==b.y;
+  let out='', make=null;
+  const rm = (arr)=>{ arr.forEach(x=>{ const i=G.bag.indexOf(x); if(i>=0) G.bag.splice(i,1); }); };
+  const roll = Math.random();
+
+  // 太极优先
+  const taijiP = (r==='克')?0.03 : (r==='比和'? (cross?0.08:0) : 0.03);
+  if(cross && Math.random()<taijiP){
+    rm(items);
+    const t = makeItem(G.depth,false);
+    t.x = '木'; t.y='阳'; t.name='太极·万用器'; t.grade=Math.min(5,a.grade+1); t.taiji=true;
+    G.bag.push(t);
+    out='<b style="color:var(--gold)">太极器 · 万用五行</b><br>'+a.name+'与'+b.name+'在仙魔对冲中互吞，成一件无色之器，<b>可当任意一行使用</b>。';
+  } else if(r==='生'||r==='逆生'){
+    if(roll<0.15){
+      rm(items);
+      const t = makeItem(G.depth,false);
+      t.x = r==='生'? b.x : a.x; t.y=a.y; t.grade=Math.min(5,Math.max(a.grade,b.grade)); t.broken=false;
+      t.name=(t.y+t.x+'器'); t.sub = (r==='生'?a.x:b.x);
+      G.bag.push(t);
+      out='<b style="color:var(--gold)">大成功 · 化生</b><br>顺生贯通，得 <b>'+t.name+'</b>，并带出一条「'+(r==='生'?a.x:b.x)+'」子行词条——它能帮你补一个劫位。';
+    } else if(roll<0.60){
+      rm(items);
+      const t = makeItem(G.depth,true);
+      t.x=a.x; t.y=a.y; t.grade=Math.min(5,a.grade+1); t.broken=false; t.name=t.y+t.x+'器';
+      G.bag.push(t);
+      out='<b style="color:var(--jade)">成功 · 承气</b><br>得 <b>'+t.name+'</b>，品质 '+GNAME[t.grade]+'，比主材高一档。';
+    } else if(roll<0.95){
+      out='<b>平常 · 残存</b><br>还是残器，词条洗了一次。两件都还在，可以再炉。';
+    } else {
+      rm(items);
+      out='<b style="color:var(--cin)">爆炉</b><br>顺生过猛，炉崩了。两件尽毁。';
+    }
+  } else if(r==='克'){
+    if(roll<0.30){
+      rm(items);
+      const t = makeItem(G.depth,true);
+      t.x=a.x; t.y='阴'; t.grade=Math.min(5,Math.max(a.grade,b.grade)); t.broken=false; t.name='煞·'+a.x+'器'; t.sha=true;
+      G.bag.push(t);
+      out='<b style="color:var(--cin)">煞器现世</b><br>'+a.x+'与'+b.x+'互相绞杀，谁也没吞掉谁。<b>煞·'+a.x+'器</b>：倍率极低，但煞值全额结转，固伤翻倍。';
+    } else if(roll<0.85){
+      rm(items);
+      out='<b style="color:var(--ink2)">废铁</b><br>两个都没撑住。化作一撮精粹，下次熔铸品质 +1 档。';
+      G.forgeBuff = true;
+    } else {
+      out='<b>残渣</b><br>没炼成器，但留下精粹——下次熔铸品质 +1 档。';
+      G.forgeBuff = true;
+    }
+  } else {
+    if(cross){
+      rm(items);
+      const t = makeItem(G.depth,true);
+      t.x=a.x; t.y=a.y; t.grade=Math.min(5,a.grade+1); t.broken=false; t.name=t.y+t.x+'器';
+      G.bag.push(t);
+      out='<b>合器</b><br>同为'+a.x+'，一仙一魔未能互吞，得 <b>'+t.name+'</b>：同名双属性，词条翻倍但全随机。';
+    } else {
+      out='<b style="color:var(--jade)">纯化</b><br>同为'+a.x+'、同为'+a.y+'，属性纯化：数值 +20%，但不会出跨行。稳，是稳。';
+      const t = a; t.grade=Math.min(5,a.grade+1); t.name=t.y+t.x+'器';
+      const i2=G.bag.indexOf(b); if(i2>=0) G.bag.splice(i2,1);
+      out += '<br>主材升至 '+GNAME[t.grade]+'。';
+    }
+  }
+
+  forgeSel=[];
+  document.getElementById('modal').innerHTML='<h3>熔 炉</h3><p>'+out+'</p>'+
+    '<div class="row"><button onclick="closeModal()">好</button></div>';
+  refresh();
+}
+
+/* ---------- 一键配装（穷举最优） ---------- */
+function autoEquip(){
+  const pool = G.bag.slice().sort((a,b)=>b.grade-a.grade).slice(0,9);
+  if(pool.length<3){ log('行囊里不足三件可配的。','bad'); return; }
+  let best=null, bm=-1;
+  for(let i=0;i<pool.length;i++)
+    for(let j=0;j<pool.length;j++)
+      for(let k=0;k<pool.length;k++){
+        if(i===j||j===k||i===k) continue;
+        const arr=[pool[i],pool[j],pool[k]];
+        const s = evaluate(arr).total;
+        if(s>bm){ bm=s; best=arr; }
+      }
+  if(!best) return;
+  // 旧配装回包
+  G.slots.forEach(s=>{ if(s) G.bag.push(s); });
+  best.forEach(it=>{ const i=G.bag.indexOf(it); if(i>=0) G.bag.splice(i,1); });
+  G.slots = best;
+  log('重新配装：'+best.map(i=>i.y+i.x).join(' → ')+'，倍率 ×'+bm.toFixed(2),
+      bm>=2?'good':'');
+  refresh();
+}
+
+/* ---------- 坊市 ---------- */
+let shop=[], shopDay=0;
+function openShop(){
+  if(shopDay!==G.day){
+    shop = [ makeItem(Math.max(1,G.depth), false),
+             makeItem(Math.max(1,G.depth), Math.random()<0.5),
+             makeItem(Math.max(1,G.depth+2), false) ];
+    shopDay = G.day;
+  }
+  renderShop();
+}
+function shopPrice(it){
+  return Math.round(Math.pow(effGrade(it),2)*30*seasonMul(it.x)*(it.broken?0.5:1));
+}
+function renderShop(){
+  const rows = shop.map((it,i)=>{
+    if(!it) return '<p style="opacity:.4">已售出</p>';
+    const p = shopPrice(it);
+    return '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px dotted var(--line)">'+
+      '<div style="font-size:20px;font-weight:700;color:'+COL[it.x]+';font-family:serif;width:30px;text-align:center">'+it.x+'</div>'+
+      '<div style="flex:1"><div>'+it.name+'</div><div style="font-size:11px;color:var(--ink2)">'+it.y+' · '+GNAME[it.grade]+(it.broken?' · 残（属性略低，可熔铸提纯）':'')+'</div></div>'+
+      '<div style="font-weight:700;color:var(--gold)">'+p+'</div>'+
+      '<button class="sm" '+(G.stones<p?'disabled':'')+' onclick="buyShop('+i+')">买</button>'+
+    '</div>';
+  }).join('');
+  document.getElementById('modal').innerHTML =
+    '<h3>坊 市</h3><p>你有 <b>'+G.stones+'</b> 灵石。每天换一批货。</p>'+
+    (shop.every(x=>!x)?'<p style="color:var(--ink2)">今日货已售罄。</p>':rows)+
+    '<p class="tip">买一件缺的五行，就能补上一个劫位——这是灵石唯一的正经用途。</p>'+
+    '<div class="row"><button onclick="closeModal()">走了</button></div>';
+  document.getElementById('mask').classList.add('on');
+}
+function buyShop(i){
+  const it = shop[i];
+  if(!it) return;
+  const p = shopPrice(it);
+  if(G.stones<p) return;
+  G.stones -= p; shop[i]=null;
+  addItem(it);
+  log('在坊市买下 '+it.name+'，花 '+p+' 灵石。','');
+  refresh(); renderShop();
+}
+
+/* ---------- 试剑 ---------- */
+function testStrike(){
+  const st = playerStats();
+  const dummy = 120;
+  const rounds = Math.ceil(dummy/st.atk);
+  const e = st.e;
+  document.getElementById('modal').innerHTML =
+    '<h3>试 剑</h3>'+
+    '<p>你对着一块试剑石（'+dummy+' 血）出了一剑。</p>'+
+    '<p>三才 <b>×'+e.total.toFixed(2)+'</b>　基础攻击 '+st.baseAtk+'　→　<b style="font-size:18px">每击 '+st.atk+'</b></p>'+
+    '<p>斩断试剑石需要 <b>'+rounds+'</b> 击。</p>'+
+    '<p class="tip">'+(e.total>=4?'左脚踩右脚，直冲云霄。'
+      : e.total>=2?'中规中矩。再找一条生链能翻倍。'
+      : e.total>=1?'你还差一条生链。三件里至少要有两对相生。'
+      : '寸步难行。相克压住了你，先把克位换掉。')+'</p>'+
+    '<div class="row"><button onclick="closeModal()">收剑</button></div>';
+  document.getElementById('mask').classList.add('on');
+  log('试剑：三才 ×'+e.total.toFixed(2)+'，每击 '+st.atk+' 点。', e.total>=2?'good':'');
+}
+
+/* ---------- 一天 ---------- */
+function sleep(){
+  G.day++;
+  G.stam = G.maxStam;
+  G.depth = 1 + Math.floor((G.day-1)/3);
+  genMap();
+  log('—— 第 '+G.day+' 天 · '+season().n+'　秘境深度 '+G.depth+' ——','hi');
+  refresh();
+}
+
+/* ---------- UI 刷新 ---------- */
+function refresh(){
+  const e = evaluate(G.slots);
+  const st = playerStats();
+
+  document.getElementById('day').textContent = G.day;
+  document.getElementById('season').textContent = season().n;
+  document.getElementById('dp').textContent = G.depth;
+  document.getElementById('stones').textContent = G.stones;
+  document.getElementById('stam').textContent = G.stam;
+  if(G.stam<=0) document.getElementById('stam').style.color='var(--cin)';
+  else document.getElementById('stam').style.color='';
+
+  /* 三槽 */
+  const box = document.getElementById('slots');
+  box.innerHTML='';
+  const names=['天位','人位','地位'];
+  for(let i=0;i<3;i++){
+    if(i>0){
+      const r = (G.slots[i-1]&&G.slots[i]) ? relOf(G.slots[i-1],G.slots[i]) : '—';
+      const d=document.createElement('div');
+      d.className='conn';
+      d.innerHTML='<div class="r" style="color:'+(r==='生'?'var(--gold)':r==='克'?'var(--cin)':'var(--ink2)')+'">'+r+'</div>'+
+                  '<div style="color:var(--ink2)">'+(r==='—'?'':('×'+MULT[r]))+'</div>';
+      box.appendChild(d);
+    }
+    const it = G.slots[i];
+    const d=document.createElement('div');
+    d.className='slot'+(it?' filled':'');
+    d.innerHTML='<div class="pos">'+names[i]+'</div>'+
+      (it ? '<div class="el" style="color:'+COL[it.x]+'">'+it.x+'</div>'+
+            '<div class="g">'+it.y+' · '+GNAME[it.grade]+(it.broken?' · 残':'')+'</div>'
+          : '<div class="el" style="color:var(--line)">空</div><div class="g">　</div>');
+    d.onclick=()=>{ if(it) unequip(i); };
+    box.appendChild(d);
+  }
+
+  /* 数据 */
+  const mulEl = document.getElementById('mul');
+  mulEl.textContent = '×'+e.total.toFixed(2);
+  mulEl.style.color = e.total>=4?'var(--gold)': e.total>=2?'var(--jade)': e.total>=1?'var(--ink)':'var(--cin)';
+
+  const shaEl=document.getElementById('sha');
+  if(e.sha===0){ shaEl.textContent='0.00'; shaEl.style.color='var(--ink2)'; }
+  else if(e.burn){ shaEl.textContent='燃 +'+e.sha.toFixed(2); shaEl.style.color='var(--gold)'; }
+  else { shaEl.textContent='存 '+e.sha.toFixed(2); shaEl.style.color='var(--cin)'; }
+
+  document.getElementById('rels').textContent = e.partial ? '（需三件）' : (e.r1+' → '+e.r2);
+  document.getElementById('yy').textContent = e.partial ? '—' : (e.yyAll?'孤阳不生 ×½':e.yyNone?'孤阴不长 ×½':'仙魔兼备');
+  document.getElementById('jie').textContent = (()=>{
+    const used = new Set(G.slots.filter(Boolean).map(i=>i.x));
+    const miss = XING.filter(x=>!used.has(x));
+    return miss.length? miss.join('·') : '已圆满';
+  })();
+
+  document.getElementById('school').textContent = (()=>{
+    const {r1,r2}=e;
+    if(e.partial) return '—';
+    if(r1==='生'&&r2==='生') return '周天三生链';
+    if(r1==='克'&&r2==='生') return '煞爆流';
+    if(r1==='克'&&r2==='克') return '魔道·双滞';
+    if(r1==='生'&&r2==='克') return '先扬后抑';
+    if(r1==='克'||r2==='克') return '蓄煞·残应';
+    if(r1==='比和'&&r2==='比和') return '一元纯体';
+    if(r1==='生'||r2==='生') return '单生·正宗';
+    return '反哺·守御';
+  })();
+
+  /* 行囊 */
+  const bag = document.getElementById('bag');
+  bag.innerHTML='';
+  document.getElementById('bagcnt').textContent = '（'+G.bag.length+'/16）　气血 '+st.hp+'　每击 '+st.atk;
+  G.bag.forEach(it=>{
+    const d=document.createElement('div');
+    d.className='item'+(it.broken?' broken':'')+(forgeSel.includes(it.id)?' sel':'');
+    d.innerHTML='<div class="el" style="color:'+COL[it.x]+'">'+it.x+'</div>'+
+      '<div class="n">'+it.y+'·'+GNAME[it.grade]+(it.broken?'·残':'')+'</div>'+
+      '<div class="act"><button class="sm" onclick="event.stopPropagation();equipFromBag('+it.id+')">佩</button>'+
+      '<button class="sm" onclick="event.stopPropagation();sellItem('+it.id+')">卖</button>'+
+      '<button class="sm" onclick="event.stopPropagation();toggleForge('+it.id+')">炉</button></div>';
+    bag.appendChild(d);
+  });
+  if(G.bag.length===0) bag.innerHTML='<div style="color:var(--ink2);font-size:11.5px">行囊空空。下秘境去凿点东西。</div>';
+}
+
+function log(html, cls){
+  G.log.unshift({html,cls});
+  if(G.log.length>60) G.log.pop();
+  const el = document.getElementById('log');
+  el.innerHTML = G.log.map(l=>'<div class="'+(l.cls||'')+'">'+l.html+'</div>').join('');
+}
+
+function closeModal(){
+  document.getElementById('mask').classList.remove('on');
+  forgeSel=[];
+  refresh();
+}
+
+function showHelp(){
+  document.getElementById('modal').innerHTML =
+    '<h3>怎么玩</h3>'+
+    '<p><b>1. 挖</b>：方向键走，撞岩壁/矿脉就挖。矿脉出装备，岩缝偶尔卡着残器。</p>'+
+    '<p><b>2. 配</b>：三件装备分天位、人位、地位。相邻两件「相生」×2，「相克」×¼。</p>'+
+    '<p><b>3. 打</b>：撞上妖兽自动开战。你的伤害 = 基础攻击 × 三才倍率。<br>倍率低于 ×1，基本打不过。</p>'+
+    '<p><b>4. 赌</b>：两件残器可以熔铸。相生出好器，相克出煞器，仙魔对冲小概率出太极器。</p>'+
+    '<p class="tip"><b>核心规矩：</b>生则倍 · 克则滞（滞者为煞，煞遇生则燃）· 阴阳济（纯仙纯魔只有一半）。<br>'+
+    '任取三行，必缺两行 —— 那两行就是你的「劫位」。</p>'+
+    '<div class="row"><button onclick="closeModal()">开始</button></div>';
+  document.getElementById('mask').classList.add('on');
+}
+
+/* ---------- 键盘 ---------- */
+window.addEventListener('keydown', e=>{
+  const k = e.key.toLowerCase();
+  if(['arrowup','w'].includes(k)){ e.preventDefault(); move(0,-1); }
+  else if(['arrowdown','s'].includes(k)){ e.preventDefault(); move(0,1); }
+  else if(['arrowleft','a'].includes(k)){ e.preventDefault(); move(-1,0); }
+  else if(['arrowright','d'].includes(k)){ e.preventDefault(); move(1,0); }
+});
+
+/* ---------- 启动 ---------- */
+window.onerror = function(m,src,l,c){ document.title='ERR: '+m+' @'+l; };
+genMap();
+log('绝地天通之后，人界断了仙缘。你在这处废矿里，捡到了第一件残器。','hi');
+log('方向键行走，撞向岩壁即可挖掘。','');
+refresh();
+render();
+if(!location.search.includes('nohelp')) showHelp();
+/* 调试：?auto 自动乱走挖矿（仅用于自测） */
+if(location.search.includes('auto')){
+  const dirs=[[0,-1],[0,1],[-1,0],[1,0]];
+  for(let i=0;i<140 && G.stam>0;i++){
+    const d=dirs[Math.floor(Math.random()*4)];
+    move(d[0],d[1]);
+  }
+  if(location.search.includes('equip')) autoEquip();
+  if(location.search.includes('fight') && mobs.length) battle(mobs[0]);
+  if(location.search.includes('forge') && G.bag.length>=2){
+    forgeSel=[G.bag[0].id, G.bag[1].id];
+    doForge();
+  }
+  if(location.search.includes('shop')) openShop();
+  refresh();
+}
+</script>
+</body>
+</html>
