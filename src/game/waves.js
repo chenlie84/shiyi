@@ -17,7 +17,7 @@ import { spawnRing, spawnBoss } from './field.js';
 const bossOf = (floor) => BOSSES[(Math.max(1, floor) - 1) % BOSSES.length];
 
 /** 这一间几只（越往里越挤） */
-const countOf = (room) => Math.min(4, 2 + Math.floor((room - 1) / 2));
+const countOf = (room) => Math.min(5, 3 + Math.floor((room - 1) / 2));
 
 /** 从外面走进来的那一下：渲染层拿 enter 做淡入、dx/dy 做滑行 */
 const entering = () => ({ enter: 1, dx: 0, dy: 0 });

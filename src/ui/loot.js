@@ -32,7 +32,7 @@ export function showLoot(items){
   box.innerHTML=items.map(lootCard).join('')+box.innerHTML;
   while(box.children.length>5) box.removeChild(box.lastChild);   // 留着，随时点开看
   const top=Math.max.apply(null,items.map(i=>i.grade));
-  if(top>=4){ shake=1.0; hitFlash=0.55; sfx('win'); }        // 仙品以上：整屏震一下
-  else if(top>=3){ shake=0.6; sfx('crit'); }
+  if(top>=4){ S.shake=Math.max(S.shake,1.0); S.hitFlash=0.55; sfx('win'); }  // 仙品以上：整屏震一下
+  else if(top>=3){ S.shake=Math.max(S.shake,0.6); sfx('crit'); }
 }
 export function clearLoot(){ $('loot').innerHTML=''; }
