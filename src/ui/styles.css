@@ -67,8 +67,9 @@
   .hudbar .slot.off .n{color:#8a7f6c}
   .hudbar .slot.rune{border-style:dashed;border-color:#8a7a5a}
   .hudbar .slot.rune b{font-size:15px;color:#c9a227}
-  .hudbar .slot.cool{opacity:.62}
-  .hudbar .slot.cool:after{content:"";position:absolute;inset:0;background:rgba(10,8,6,.5)}
+  /* 出招时压暗，但还得看得清 —— 压太狠等于把快捷栏藏起来 */
+  .hudbar .slot.cool{opacity:.82}
+  .hudbar .slot.cool:after{content:"";position:absolute;inset:0;background:rgba(10,8,6,.32)}
   /* 画面下方：落宝与一句提示 */
   .under{display:flex;align-items:flex-start;gap:10px;margin-top:7px;min-height:26px}
   .under .tip{margin:0;flex:1}
