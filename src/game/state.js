@@ -9,6 +9,13 @@
  */
 
 import { seed, unseed } from '../core/rng.js';
+import { FIELD } from '../config.js';
+
+/** 地面正中的那一点：开局与每进一间，人站在这里 */
+export const fieldCenter = () => ({
+  x: (FIELD.x0 + FIELD.x1) / 2,
+  y: (FIELD.y0 + FIELD.y1) / 2,
+});
 
 /** 一局的状态 */
 export const G = {
@@ -39,6 +46,15 @@ export const S = {
   mobs: [],
   target: 0,
 
+  // 玩家在世界里的位置（脚底世界坐标）与镜头
+  px: 0,
+  py: 0,
+  cam: { x: 0, y: 0 },
+  camSnap: true,     // 下一帧镜头直接对准（换房间/开局）
+  moveTo: null,      // 点地走路的落点
+  walk: 0,           // 迈步相位，走路时推
+  face: 1,           // 朝向，1 右 / -1 左
+
   // 英雄
   php: 1,          // 当前气血
   shield: 0,
@@ -50,6 +66,7 @@ export const S = {
   // 镜头 / 屏效
   shake: 0,
   hitFlash: 0,
+  clock: 0,        // 只往上加的时间（秒）：火苗、水波这些"一直在动"的东西用它
   freeze: 0,       // 打击停顿，单位秒
 
   // 表现对象池
@@ -89,6 +106,14 @@ export function resetState() {
 
   S.mobs = [];
   S.target = 0;
+  S.px = fieldCenter().x;
+  S.py = fieldCenter().y;
+  S.cam.x = 0;
+  S.cam.y = 0;
+  S.camSnap = true;
+  S.moveTo = null;
+  S.walk = 0;
+  S.face = 1;
   S.php = 1;
   S.shield = 0;
   S.buffNext = 0;

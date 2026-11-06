@@ -25,5 +25,8 @@ export function burst(x, y, n, color) {
 
 /** 飘一条字 */
 export function floatText(x, y, txt, color, big, shufa) {
-  S.floats.push({ x, y, txt, c: color, t: 0, life: 0.95, big: !!big, shufa: !!shufa });
+  // 同一位置连着飘好几条（多段伤害、多只怪一起挨打）会叠成一坨，横着抖开
+  const jx = shufa ? 0 : (Math.random() - 0.5) * 52;
+  const jy = shufa ? 0 : (Math.random() - 0.5) * 16;
+  S.floats.push({ x: x + jx, y: y + jy, txt, c: color, t: 0, life: 0.95, big: !!big, shufa: !!shufa });
 }

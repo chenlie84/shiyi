@@ -35,6 +35,7 @@
 | `game/` 只许 import `render/presenter.js` | 见下一节：依赖倒置 |
 | `data/` 不许 import 任何逻辑 | 数据表要能被任何人（含未来的服务端、工具脚本）直接吃 |
 | `core/` 不许 import 任何内部模块 | 零依赖工具，谁都可以安全引用它，包括测试 |
+| `platform/` 只许 import `core/`（和 `config.js` 常量） | 输入、调度、URL 开关都是"贴着浏览器"的东西，一旦知道游戏状态，就没法在无头环境里换掉 |
 
 `ui/` 可以引一切，但**没人可以引 `ui/`**（`main.js` 除外）。
 所以 `combat.js` 需要弹「拾遗三选一」时，用的是注入的回调，不是 `import`：
@@ -87,6 +88,38 @@ S // 每帧舞台：怪物、气血、粒子、光柱、镜头抖动…… 不�
   唯一例外是 `S.freeze`（打击停顿），由 `main.js` 注入的 `hitStop` 直接写 ——
   因为它是个渲染开关，不是游戏状态。
 
+## 3.5 世界坐标 / 视口坐标 / 镜头
+
+地宫是**一整块地**（`WORLD_W × WORLD_H` = 1800 × 1280），镜头只看得见其中
+`CV_W × CV_H` = 900 × 560 的一格（正好是 canvas 的 width/height）。
+于是有两套坐标，混用一次就会画歪：
+
+| 名字 | 存在哪 | 谁用 |
+| --- | --- | --- |
+| **世界坐标** | `S.px / S.py`、`mob.x / mob.y`、弹道的 `x0/x1`、光柱 | 一切进战场的实体 |
+| **镜头** | `S.cam.x / S.cam.y` = 视口左上角在世界里的位置 | `game/field.js` 的 `updateCam()` |
+| **视口坐标** | 0..`CV_W` / 0..`CV_H` | 气血槽、招式题字、径向暗角 —— 该贴在镜头上的东西 |
+
+渲染因此分**两趟**（`render/scene.js`）：
+
+```js
+ctx.save(); ctx.translate(-S.cam.x, -S.cam.y); drawWorld(); ctx.restore(); // 世界趟
+drawScreen();                                                             // 屏幕趟
+```
+
+世界趟里，人和怪**按脚底 y 排序后再画** —— 站在下面的挡住站在上面的，才有纵深。
+
+镜头带 **96px 死区**：人在画面正中一小块范围内动的时候镜头不动，走出死区才跟，
+跟的时候用 0.2 的插值。一直把人钉在正中，玩家会以为"画面在动、我没动"。
+换房间／开局时 `S.camSnap = true`，镜头直接归位，不从上一间滑过来。
+
+`platform/input.js` 只管两件事：推杆往哪边（`axis()`）、点了画面哪一点。
+它**不认识游戏状态** —— 点地走要加镜头偏移才能得到世界坐标，这步由 `main.js` 注入：
+
+```js
+installInput(canvas, (sx, sy) => { S.moveTo = { x: sx + S.cam.x, y: sy + S.cam.y }; });
+```
+
 ## 4 一次出招的完整链路
 
 ```
@@ -120,7 +153,7 @@ while (queue.length) { /* 取最小 t 的回调，clock = t，执行 */ }
 于是 `tools/driver.js` 能写出这样的循环：
 
 ```js
-while (!G.over && G.wave <= maxWave) {
+while (!G.over && G.room <= maxRoom) {
   if (G.busy) { flush(); continue; }   // 敌方回合，推完时间再回来
   manage(policy);                       // 鉴定 / 配装 / 清仓 / 熔炉
   castSkill(pickSkill());               // 玩家出招
@@ -133,8 +166,18 @@ while (!G.over && G.wave <= maxWave) {
 ## 6 渲染顺序（`render/scene.js`）
 
 ```
-背景 → 掉宝光柱 → 怪物 → 人物 → 招式特效 → 底部 HUD → 粒子 → 飘字 → 题字 → 受击红闪
+世界趟（ctx 已平移 −cam）
+  地砖与摆件 → 掉宝光柱 → 【怪物 / 人物 按脚底 y 排序】 → 招式特效 → 粒子 → 飘字
+
+屏幕趟（restore 之后）
+  气血槽 → 招式题字 → 径向暗角（以人所在位置为心）
+
+最后
+  受击红闪、镜头抖动
 ```
+
+地砖和摆件**只画视口覆盖到的那几行几列**（`i0..i1 / j0..j1` 由 `S.cam` 算），
+世界再大也不影响开销。摆件的位置由格坐标哈希定死，走回来还是那几样东西。
 
 光柱排在人物之前，人就成了逆光剪影 —— 这是刻意的。整个 `drawFX()` 跑在
 `globalCompositeOperation = 'lighter'` 下（叠加发光），只有土系的石头会临时

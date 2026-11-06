@@ -104,6 +104,117 @@ if (missing.length) {
   console.log(c.ok('✓ 引用') + '  所有 import 都能落地');
 }
 
+/* ── 2b. 具名导入真的存在 ───────────────────────────────────
+ * 只查文件在不在，是查不出 `import { FOOT }` 这种"文件在、名字不在"的错的：
+ * 浏览器会静默不出图，最难查。这里把每个文件的 export 名单先收齐，再对账。
+ */
+
+const SYM_NAMED = /import\s*\{([^}]*)\}\s*from\s*['"]([^'"]+)['"]/g;
+const SYM_KW = /\bexport\s+(?:async\s+)?(const|let|var|function|class)\s+/g;
+const SYM_LIST = /export\s*\{([^}]*)\}/g;
+const SYM_STAR = /export\s*\*\s*from\s*['"]([^'"]+)['"]/g;
+
+/** 把字符串字面量挖空，免得里面的 , ; } 干扰括号扫描 */
+const blankStrings = (s) => s.replace(/(["'`])(?:\\.|(?!\1)[\s\S])*?\1/g, '""');
+
+/**
+ * 从关键字之后读一段声明，取出被声明的名字。
+ * 支持 `export const A=1, B=F(x), C={a:1,b:2};` —— 按括号深度切顶层逗号。
+ */
+function declNames(src, kw, start) {
+  let depth = 0;
+  let i = start;
+  for (; i < src.length && i - start < 8000; i++) {
+    const ch = src[i];
+    if (ch === '(' || ch === '[' || ch === '{') depth++;
+    else if (ch === ')' || ch === ']' || ch === '}') depth--;
+    else if ((ch === ';' || ch === '\n') && depth <= 0) break;
+  }
+  const body = blankStrings(src.slice(start, i));
+  if (kw === 'function' || kw === 'class') {
+    const m = /^\s*([A-Za-z_$][\w$]*)/.exec(body);
+    return m ? [m[1]] : [];
+  }
+  const out = [];
+  let d = 0;
+  let cur = '';
+  for (const ch of body) {
+    if (ch === '(' || ch === '[' || ch === '{') d++;
+    else if (ch === ')' || ch === ']' || ch === '}') d--;
+    if (ch === ',' && d === 0) {
+      out.push(cur);
+      cur = '';
+      continue;
+    }
+    cur += ch;
+  }
+  out.push(cur);
+  return out.map((s) => (/^\s*([A-Za-z_$][\w$]*)/.exec(s) || [0, ''])[1]).filter(Boolean);
+}
+
+const exported = new Map(); // abs -> { set:Set, star:[abs] }
+
+for (const f of files) {
+  const src = readFileSync(f, 'utf8');
+  const set = new Set();
+  const star = [];
+  let m;
+  SYM_KW.lastIndex = 0;
+  while ((m = SYM_KW.exec(src))) {
+    for (const n of declNames(src, m[1], m.index + m[0].length)) set.add(n);
+  }
+  SYM_LIST.lastIndex = 0;
+  while ((m = SYM_LIST.exec(src))) {
+    for (const part of m[1].split(',')) {
+      const t = part.trim();
+      if (!t) continue;
+      const as = t.split(/\s+as\s+/);
+      set.add((as[1] || as[0]).trim());
+    }
+  }
+  SYM_STAR.lastIndex = 0;
+  while ((m = SYM_STAR.exec(src))) {
+    const abs = resolve(dirname(f), m[1]);
+    if (existsSync(abs)) star.push(abs);
+  }
+  exported.set(f, { set, star });
+}
+
+// export * 摊平（三轮足够，本项目深度只有一层）
+for (let round = 0; round < 3; round++) {
+  for (const [, e] of exported) {
+    for (const s of e.star) {
+      const t = exported.get(s);
+      if (t) for (const n of t.set) e.set.add(n);
+    }
+  }
+}
+
+const ghost = [];
+for (const f of files) {
+  const src = readFileSync(f, 'utf8');
+  SYM_NAMED.lastIndex = 0;
+  let m;
+  while ((m = SYM_NAMED.exec(src))) {
+    const abs = resolve(dirname(f), m[2]);
+    const e = exported.get(abs);
+    if (!e) continue; // 非 .js（css 等），不管
+    for (const part of m[1].split(',')) {
+      const name = part.trim().split(/\s+as\s+/)[0].trim();
+      if (name && !e.set.has(name)) ghost.push({ from: f, name, spec: m[2] });
+    }
+  }
+}
+
+if (ghost.length) {
+  errors += ghost.length;
+  ghost.forEach((g) =>
+    console.log(c.bad('✗ 无此导出 ') + rel(g.from) + ' 想要「' + g.name + '」← ' + g.spec)
+  );
+} else {
+  console.log(c.ok('✓ 具名') + '  所有 import 的名字都对得上');
+}
+
 // DFS 找环
 const state = new Map(); // 0 未访问 1 在栈上 2 完成
 const stack = [];

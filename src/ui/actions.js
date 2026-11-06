@@ -78,6 +78,19 @@ function setDiff() {
   refresh();
 }
 
+/* ── 抽屉：三才 / 七星 / 行囊 ── */
+export function togglePack(force) {
+  const d = document.getElementById('drawer');
+  if (!d) return;
+  const on = force === undefined ? !d.classList.contains('on') : !!force;
+  d.classList.toggle('on', on);
+  document.body.classList.toggle('drawer-on', on);
+  if (on) {
+    S.moveTo = null; // 翻开面板就别再往那个点走了
+    refresh(); // 打开时补一次，别让我看到上次的旧数
+  }
+}
+
 /** 把内联 onclick 需要的东西挂到 window 上 */
 export function installActions() {
   Object.assign(window, {
@@ -92,6 +105,7 @@ export function installActions() {
     pickLink,
     setLink,
     onNode,
+    togglePack,
     takeRelic: (i) => takeRelic(i),
     uiTakeRelic: (i) => takeRelic(i),
     // 器
@@ -115,5 +129,44 @@ export function installActions() {
     autoEquip,
     openModal,
     log,
+  });
+
+  /* ── 顶栏与抽屉按钮：一处委托，比在每个按钮上写 onclick 稳 ── */
+  const ACT = {
+    pack: () => togglePack(),
+    'pack-close': () => togglePack(false),
+    meridian: showMeridian,
+    dex: showDex,
+    help: showHelp,
+    reset: () => resetAll(),
+    'salvage-junk': salvageJunk,
+  };
+
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest && e.target.closest('[data-act]');
+    if (btn) {
+      const fn = ACT[btn.dataset.act];
+      if (fn) {
+        e.preventDefault();
+        fn();
+        return;
+      }
+    }
+    // 点在抽屉外面（画面、顶栏空白）就顺手收起；弹层里的点击不算
+    if (!e.target.closest('#drawer') && !e.target.closest('#mask') &&
+        document.body.classList.contains('drawer-on')) {
+      togglePack(false);
+    }
+  });
+
+  // 难度下拉：换档立刻重排这一间的怪
+  const sel = document.getElementById('diff');
+  if (sel) sel.addEventListener('change', setDiff);
+
+  // Esc：先关弹层，再收抽屉
+  window.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (document.body.classList.contains('modal-on')) closeModal();
+    else togglePack(false);
   });
 }

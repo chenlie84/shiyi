@@ -11,11 +11,11 @@ import { G, S } from './state.js';
 import { calcStats, xpNeed } from './stats.js';
 import { makeItem, nmOf } from './item.js';
 import { buildSkills, skillPower, resolve } from './skills.js';
-import { makeWave, layoutMobs, alive } from './waves.js';
+import { makeWave, alive } from './waves.js';
 import { isBossRoom, prog, advanceRoom, enterDungeon, where, roomHint } from './dungeon.js';
+import { distToPlayer, stepToPlayer, placePlayer, reachOf } from './field.js';
 import { registerDex } from './dex.js';
 import { rand, chancePct } from '../core/rng.js';
-import { GROUND, PLAYER_X } from '../config.js';
 import { delay } from '../platform/scheduler.js';
 import {
   log, refresh, floatText, burst, hitStop, sfx,
@@ -27,8 +27,8 @@ const SHOT_LAG = 150; // 第一发飞行的余量
 
 /** 进这一间 */
 export function startWave() {
+  placePlayer(); // 每间从屋子正中起步，怪围上来
   S.mobs = makeWave();
-  layoutMobs();
   G.turn = 1;
   G.busy = false;
   G.over = false;
@@ -50,15 +50,22 @@ export function startWave() {
   refresh();
 }
 
-/** 出手目标：站得最前、还活着的那个 */
+/** 出手目标：离得最近、还活着的那个 */
 function front() {
   const list = alive();
-  return list.length ? list[0] : null;
+  if (!list.length) return null;
+  return list.reduce((best, m) => (distToPlayer(m.x, m.y) < distToPlayer(best.x, best.y) ? m : best));
 }
 
-/** 命中的那只之外，站得最近的两只（给"溅"用） */
+/** 按离玩家的远近排一遍 —— 多发时先打近的 */
+const byNear = (list) =>
+  list.slice().sort((a, b) => distToPlayer(a.x, a.y) - distToPlayer(b.x, b.y));
+
+/** 命中的那只之外，离它最近的两只（给"溅"用） */
 function neighbors(m) {
-  return alive().filter((x) => x !== m).sort((a, b) => Math.abs(a.x - m.x) - Math.abs(b.x - m.x));
+  return alive()
+    .filter((x) => x !== m)
+    .sort((a, b) => Math.hypot(a.x - m.x, a.y - m.y) - Math.hypot(b.x - m.x, b.y - m.y));
 }
 
 /**
@@ -104,7 +111,7 @@ function land(m, base, spec, q, extra = 1, label = '') {
     const h = Math.round((v * lc) / 100);
     if (h > 0) {
       S.php = Math.min(calcStats().s.hp, S.php + h);
-      floatText(PLAYER_X + (rand() - 0.5) * 18, GROUND - 104, '+' + h, '#6cbb8c');
+      floatText(S.px + (rand() - 0.5) * 18, S.py - 104, '+' + h, '#6cbb8c');
     }
   }
 
@@ -168,7 +175,7 @@ export function castSkill(idx) {
   const st = calcStats();
   const e = st.e;
   const spec = resolve(sk, list);
-  const targets = alive();
+  const targets = byNear(alive());
   if (!targets.length || !spec) return;
 
   G.busy = true;
@@ -185,18 +192,18 @@ export function castSkill(idx) {
   if (spec.onCastHeal) {
     const h = Math.round(power * spec.onCastHeal);
     S.php = Math.min(st.s.hp, S.php + h);
-    floatText(PLAYER_X, GROUND - 120, '+' + h, '#6cbb8c');
+    floatText(S.px, S.py - 120, '+' + h, '#6cbb8c');
     log('　符·回春：气血 +' + h, '#2f6b52');
   }
   if (spec.onCastShield) {
     const v = Math.round(power * spec.onCastShield);
     S.shield += v;
-    floatText(PLAYER_X, GROUND - 120, '盾 ' + v, '#6fa8c9');
+    floatText(S.px, S.py - 120, '盾 ' + v, '#6fa8c9');
     log('　符·护身：护盾 +' + v, '#38617f');
   }
   if (spec.onCastBuff) {
     S.buffNext = 2;
-    floatText(PLAYER_X, GROUND - 120, '蓄势', '#c9a227');
+    floatText(S.px, S.py - 120, '蓄势', '#c9a227');
     log('　符·蓄势：下一击翻倍', '#a8811f');
   }
 
@@ -251,7 +258,7 @@ function finishCast(spec, power) {
   if (spec.selfHurt) {
     const d = Math.max(1, Math.round(power * spec.selfHurt));
     S.php -= d;
-    floatText(PLAYER_X, GROUND - 88, '-' + d, '#a83b2c');
+    floatText(S.px, S.py - 88, '-' + d, '#a83b2c');
     if (S.php <= 0) { S.php = 0; onDeath(); return; }
   }
   if (alive().length === 0) {
@@ -261,7 +268,12 @@ function finishCast(spec, power) {
   delay(() => enemyTurn(), 240);
 }
 
-/** 敌人一起还手 */
+/**
+ * 敌人一起动：先往上围，够得着才动手
+ *
+ * 怪不是一开始就能打到你 —— 它们从四方走来，走一步算一个回合。
+ * 站太远的怪这一回合只是挪一步，所以"退开躲一回合"是有意义的。
+ */
 export function enemyTurn() {
   const st = calcStats();
   const q = st.q;
@@ -269,6 +281,14 @@ export function enemyTurn() {
   alive().forEach((m, i) => {
     delay(() => {
       if (m.dead || G.over) return;
+
+      // 远：先靠近，不还手
+      if (distToPlayer(m.x, m.y) > reachOf(m)) {
+        const inReach = stepToPlayer(m);
+        refresh();
+        if (!inReach) return;
+      }
+
       m.atkAnim = 0.3;
 
       let raw = Math.max(1, m.atk - st.s.def * 0.5);
@@ -284,7 +304,7 @@ export function enemyTurn() {
         S.shield -= absorb;
         d -= absorb;
         if (d > 0) S.php -= d;
-        floatText(PLAYER_X, GROUND - 70, absorb ? '盾挡 ' + absorb : '', '#6fa8c9');
+        floatText(S.px, S.py - 70, absorb ? '盾挡 ' + absorb : '', '#6fa8c9');
       } else {
         S.php -= d;
       }
@@ -294,7 +314,7 @@ export function enemyTurn() {
         S.shake = 0.4;
         S.pHurt = 0.16;
         hitStop(0.035);
-        floatText(PLAYER_X + (rand() - 0.5) * 20, GROUND - 80, '-' + d, '#e07a6a');
+        floatText(S.px + (rand() - 0.5) * 20, S.py - 80, '-' + d, '#e07a6a');
         sfx('hurt');
       }
 
@@ -340,12 +360,12 @@ export function enemyTurn() {
     if (sp.regen > 0) {
       const h = Math.round((now.s.hp * sp.regen) / 100);
       S.php = Math.min(now.s.hp, S.php + h);
-      floatText(PLAYER_X, GROUND - 110, '息 +' + h, '#6cbb8c');
+      floatText(S.px, S.py - 110, '息 +' + h, '#6cbb8c');
     }
     if (sp.drain > 0) {
       const dmg = Math.max(1, Math.round((now.s.hp * sp.drain) / 100));
       S.php -= dmg;
-      floatText(PLAYER_X, GROUND - 88, '蚀 -' + dmg, '#a83b2c');
+      floatText(S.px, S.py - 88, '蚀 -' + dmg, '#a83b2c');
       if (S.php <= 0) {
         S.php = 0;
         onDeath();
@@ -372,8 +392,8 @@ export function winWave() {
 
   sfx('win');
   S.shake = boss ? 1.3 : 0.8;
-  burst(400, GROUND - 60, boss ? 72 : 40, boss ? '#e8c06a' : '#c9a227');
-  floatText(320, 150, boss ? '妖王伏诛' : '破阵', '#ffd166', true, true);
+  burst(S.px, S.py - 40, boss ? 72 : 40, boss ? '#e8c06a' : '#c9a227');
+  floatText(S.px, S.py - 150, boss ? '妖王伏诛' : '破阵', '#ffd166', true, true);
 
   const st = calcStats();
   S.php = Math.min(st.s.hp, S.php + Math.round(st.s.hp * (boss ? 0.5 : 0.3)));

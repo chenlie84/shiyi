@@ -32,6 +32,7 @@ import { showDeath, closeDeath } from './ui/death-panel.js';
 import { installActions } from './ui/actions.js';
 
 import { readFlags, FLAGS } from './platform/flags.js';
+import { installInput } from './platform/input.js';
 import { seed } from './core/rng.js';
 
 function boot() {
@@ -39,6 +40,10 @@ function boot() {
   if (FLAGS.seed) seed(FLAGS.seed);
 
   initCanvas('cv');
+  // 点地走：画面坐标 + 镜头位置 = 世界坐标（输入层不认识游戏状态，所以这里补上）
+  installInput(document.getElementById('cv'), (sx, sy) => {
+    S.moveTo = { x: sx + S.cam.x, y: sy + S.cam.y };
+  });
 
   // 把表现层接到 game 上（game 只认这组函数名，不知道 DOM 的存在）
   bindPresenter({

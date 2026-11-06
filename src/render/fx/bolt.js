@@ -9,27 +9,32 @@
  *   orbit   先绕身一周再出手（环流符）
  *   skyfall 从天而落（天坠符 / 周天璇玑）
  *
+ * 这一版起弹是从玩家世界坐标飞向目标世界坐标 —— 全 2D，能横穿整个屏幕。
  * 只负责"看起来怎么飞"；伤害早在 game 层算完了。
  */
 
 import { ctx } from '../canvas.js';
 import { S } from '../../game/state.js';
-import { GROUND, PLAYER_X } from '../../config.js';
 import { hexA } from '../../core/math.js';
 import { rand } from '../../core/rng.js';
 import { ELEM_FX } from '../palette.js';
 import { alive } from '../../game/waves.js';
 
-const X0 = PLAYER_X + 26;
-const Y0 = GROUND - 64;
+/**
+ * 每种弹道的基准飞行时长（秒）
+ *
+ * 要比"打击感"更慢一点：地宫是整屏游走的，弹得看得见它从身上飞出去、
+ * 越过半个屏幕才砸到怪身上，才有"满屏在动"的感觉。太快就只剩一闪。
+ */
+const FLIGHT = { line: 0.26, arc: 0.34, zigzag: 0.32, homing: 0.44, orbit: 0.56, skyfall: 0.36 };
 
-/** 每种的飞行时长（秒）与起步错开（秒） */
-const FLIGHT = { line: 0.15, arc: 0.2, zigzag: 0.19, homing: 0.26, orbit: 0.4, skyfall: 0.2 };
+/** 弹从胸口出来，不是从脚底出来 */
+const HAND_UP = 64;
 
 /**
  * 生成这一式的所有投射物
  * @param {object} spec composeSpell 结果
- * @param {Array} targets 存活怪（按位置）
+ * @param {Array} targets 存活怪（已按远近排好）
  */
 export function spawnBolts(spec, targets) {
   if (!spec || !targets || !targets.length) return;
@@ -37,14 +42,26 @@ export function spawnBolts(spec, targets) {
   const F = ELEM_FX[spec.elem] || ELEM_FX.木;
   const path = spec.path || 'line';
 
+  const x0 = S.px;
+  const y0 = S.py - HAND_UP;
+
   for (let i = 0; i < n; i++) {
     const tg = targets[Math.min(i, targets.length - 1)] || alive()[0];
     if (!tg) continue;
-    const tx = tg.x;
-    const ty = GROUND - 52;
+    const x1 = tg.x;
+    const y1 = tg.y - 52;
 
-    // 多发时略微散开，别叠成一条线
-    const spread = n > 1 ? (i - (n - 1) / 2) * (path === 'arc' ? 12 : 22) : 0;
+    // 多发时沿着"垂直于飞行方向"散开，别叠成一条线
+    const dx = x1 - x0;
+    const dy = y1 - y0;
+    const len = Math.max(1, Math.hypot(dx, dy));
+    const spread = n > 1 ? (i - (n - 1) / 2) * (path === 'arc' ? 12 : 24) : 0;
+    const ox = (-dy / len) * spread;
+    const oy = (dx / len) * spread;
+
+    // 远的目标飞久一点，不然半屏外的怪像被"秒贴"了一下
+    const fly = ((FLIGHT[path] || 0.28) + len * 0.00042) / Math.max(0.6, spec.spd * 0.85);
+    const d0 = i * 0.095; // 连珠感：一发接一发
 
     S.fx.push({
       k: 'bolt',
@@ -53,27 +70,26 @@ export function spawnBolts(spec, targets) {
       elem: spec.elem,
       trait: spec.trait,
       t: 0,
-      d0: i * 0.095, // 连珠感：一发接一发
-      fly: (FLIGHT[path] || 0.16) / Math.max(0.6, spec.spd * 0.85),
-      x0: X0,
-      y0: Y0,
-      x1: tx + spread,
-      y1: ty + (path === 'arc' ? -6 : 0),
+      d0,
+      fly,
+      x0,
+      y0,
+      x1: x1 + ox,
+      y1: y1 + oy,
+      gy: tg.y, // 落地时用的地面高度（怪物的脚底）
       s: Math.max(0.55, Math.min(1.9, spec.size)),
       seed: rand() * 6.28,
       hit: false,
+      life: d0 + fly,
     });
-    // 存活期 = 起步延迟 + 飞行时间（updateVisual 按 life 回收）
-    S.fx[S.fx.length - 1].life = i * 0.095 + (FLIGHT[path] || 0.16) / Math.max(0.6, spec.spd * 0.85);
   }
 }
 
 /** 落点开花：爆闪 + 该五行的本体 */
 function landing(e) {
   const F = ELEM_FX[e.elem] || ELEM_FX.木;
-  const fy = F.k === 'ring' ? GROUND - 2 : GROUND - 46;
   S.fx.push({ k: 'flash', x: e.x1, y: e.y1, col: e.col, t: 0, life: 0.24 });
-  S.fx.push({ k: F.k, x: e.x1, y: fy, col: e.col, t: 0, life: 0.5, s: e.s * 0.95 });
+  S.fx.push({ k: F.k, x: e.x1, y: e.y1, gy: e.gy, col: e.col, t: 0, life: 0.5, s: e.s * 0.95 });
 }
 
 /** 某一时刻弹在哪儿 */
@@ -84,15 +100,16 @@ function pos(e, p) {
 
   switch (e.path) {
     case 'arc': {
-      const lift = 58 + Math.abs(dx) * 0.08;
+      const lift = 58 + Math.hypot(dx, dy) * 0.08;
       return [x0 + dx * p, y0 + dy * p - Math.sin(Math.PI * p) * lift];
     }
     case 'zigzag': {
       const wob = Math.sin(p * Math.PI * 3.2) * 20 * (1 - p * 0.35);
-      return [x0 + dx * p, y0 + dy * p + wob];
+      const len = Math.max(1, Math.hypot(dx, dy));
+      return [x0 + dx * p + (-dy / len) * wob, y0 + dy * p + (dx / len) * wob];
     }
     case 'homing': {
-      // 先向左上绕出去，再俯冲回来
+      // 先往侧上绕出去，再俯冲回来
       const cx = x0 + dx * 0.12;
       const cy = y0 - 96;
       const u = 1 - p;
@@ -106,7 +123,7 @@ function pos(e, p) {
       if (p < 0.32) {
         const q = p / 0.32;
         const ang = -Math.PI / 2 + q * Math.PI * 2;
-        return [x0 + Math.cos(ang) * 34, y0 + Math.sin(ang) * 22];
+        return [x0 + Math.cos(ang) * 34, y0 + Math.sin(ang) * 24];
       }
       const q = (p - 0.32) / 0.68;
       return [x0 + dx * q, y0 + dy * q - Math.sin(Math.PI * q) * 16];
@@ -124,15 +141,18 @@ function pos(e, p) {
 export function drawBolt(e, p, a) {
   if (p <= 0.02) return;
   const [x, y] = pos(e, p);
-  const r = 7 * e.s;
+  const r = 8.4 * e.s;
 
-  // 拖尾：短促的几段，越远越细越淡（太长会糊成一团烟）
-  for (let i = 1; i <= 4; i++) {
-    const q = Math.max(0, p - i * 0.045);
+  // 拖尾：从弹体往起点方向铺一串小方点。
+  // 地宫是整屏走的，尾得够长才看得出弹是从人身上飞出去、一路划过去的。
+  const TAIL = 9;
+  for (let i = 1; i <= TAIL; i++) {
+    const q = Math.max(0, p - i * 0.024);
     if (q <= 0) break;
     const [tx, ty] = pos(e, q);
-    const s = Math.max(1.4, 4.6 * e.s - i * 0.9);
-    ctx.fillStyle = hexA(i === 1 ? '#ffffff' : e.col, (1 - i / 5) * a * 0.8);
+    const f = 1 - i / (TAIL + 1.5);
+    const s = Math.max(1.2, 5.8 * e.s * f);
+    ctx.fillStyle = hexA(i <= 2 ? '#ffffff' : e.col, f * f * a * 0.9);
     ctx.fillRect(tx - s / 2, ty - s / 2, s, s);
   }
 

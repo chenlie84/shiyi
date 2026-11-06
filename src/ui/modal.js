@@ -17,8 +17,14 @@ import { PRE, SUF, PREK, SUFK, TIERC } from '../data/affixes.js';
 import { COL } from '../data/elements.js';
 import { SK_MAX } from '../game/skills.js';
 
-export function openModal(html){ modalEl().innerHTML=html; maskEl().classList.add('on'); }
-export function closeModal(){ S.modalItem=null; maskEl().classList.remove('on'); }
+export function openModal(html){
+  modalEl().innerHTML=html; maskEl().classList.add('on');
+  document.body.classList.add('modal-on');
+}
+export function closeModal(){
+  S.modalItem=null; maskEl().classList.remove('on');
+  document.body.classList.remove('modal-on');
+}
 
 export function showItem(id){
   const it=findItem(id);

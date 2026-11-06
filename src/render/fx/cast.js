@@ -6,9 +6,8 @@
  * 但土系的石头是实物，必须临时切回 source-over，否则暗底会被吃掉。
  */
 
-import { cv, ctx } from '../canvas.js';
+import { ctx } from '../canvas.js';
 import { S } from '../../game/state.js';
-import { GROUND, PLAYER_X } from '../../config.js';
 import { hexA } from '../../core/math.js';
 import { rand } from '../../core/rng.js';
 import { COL_L, ELEM_FX } from '../palette.js';
@@ -20,21 +19,22 @@ export function spawnCastFX(sk, spec){
   const F=ELEM_FX[sk.elem]||ELEM_FX.木;
   const path=spec? spec.path : 'line';
   const proj=spec? spec.proj : 1;
+  const px=S.px, py=S.py;
 
   // 起手：掌心聚气 —— 一发爆闪，很短，别抢戏
-  S.fx.push({k:'flash', x:PLAYER_X+26, y:GROUND-64, col:F.col, t:0, life:0.2});
+  S.fx.push({k:'flash', x:px+26*S.face, y:py-64, col:F.col, t:0, life:0.2});
 
   // 大术（多发 / 天降）：先推一道气浪出来
   if(proj>=3 || path==='skyfall'){
-    S.fx.push({k:'wave', x:PLAYER_X, y:GROUND-56, col:F.col, t:0, life:0.5});
+    S.fx.push({k:'wave', x:px, y:py-56, col:F.col, t:0, life:0.5});
   }
   // 环流：绕身一圈的符粒，读起来就是"先绕再放"
   if(path==='orbit'){
-    S.fx.push({k:'spiral', x:PLAYER_X, y:GROUND, col:'#ffd166', t:0, life:0.46});
+    S.fx.push({k:'spiral', x:px, y:py, col:'#ffd166', t:0, life:0.46});
   }
   // 自身挂着的符，给一发脚下的短光环，提示"这一招被改过"
   if(spec && spec.tags && spec.tags.length){
-    S.fx.push({k:'aura', x:PLAYER_X, y:GROUND, col:'#c9a227', t:0, life:0.3, r:26});
+    S.fx.push({k:'aura', x:px, y:py, col:'#c9a227', t:0, life:0.3, r:26});
   }
 }
 
@@ -167,7 +167,7 @@ export function drawFX(){
     } else if(e.k==='wave'){
       // 全体技：一道弧形气浪横扫过去（外晕 / 浪芯 / 白刃 三层同心）
       const R=76;
-      const x=e.x+(cv.width-e.x+90)*Math.min(1.06,p*1.32);
+      const x=e.x+980*Math.min(1.06,p*1.32);
       const cx=x-R, A=-0.95, B=0.95;
       const band=(w,col)=>{
         ctx.strokeStyle=col; ctx.lineWidth=w*(1-p*0.5);
@@ -255,13 +255,14 @@ export function drawFX(){
 
     } else if(e.k==='ring'){
       // 水：地面涟漪荡开，水珠被激起
+      const gy = e.gy!==undefined? e.gy : e.y+46;
       for(let i=0;i<3;i++){
         const pp=Math.max(0,Math.min(1,(p-i*0.13)/0.85));
         if(pp<=0) continue;
         const r=10+pp*58;
         ctx.strokeStyle=hexA(i===0?'#e6f6ff':e.col,(1-pp)*0.9);
         ctx.lineWidth=3.4*(1-pp)+0.6;
-        ctx.beginPath(); ctx.ellipse(e.x,e.y+2,r,r*0.32,0,0,7); ctx.stroke();
+        ctx.beginPath(); ctx.ellipse(e.x,gy,r,r*0.32,0,0,7); ctx.stroke();
       }
       // 水幕：从怪身上垂下的一段帘
       const cur=1-Math.min(1,p*2.2);
@@ -330,7 +331,7 @@ export function drawFX(){
 
     } else if(e.k==='quake'){
       // 土：地裂 + 一块巨石从天砸下 + 落地碎石四溅
-      const gy=e.y+46;                       // 地面
+      const gy=e.gy!==undefined? e.gy : e.y+46;   // 地面
       ctx.strokeStyle=hexA(e.col,a*0.85);
       ctx.lineWidth=2.8*(1-p*0.35);
       for(let i=0;i<2;i++){

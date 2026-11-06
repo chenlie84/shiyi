@@ -5,3 +5,4 @@ dist/
 *.log
 *.tmp
 .body.tmp.html
+.workbuddy/

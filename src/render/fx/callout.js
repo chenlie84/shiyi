@@ -7,7 +7,6 @@
 
 import { ctx } from '../canvas.js';
 import { S } from '../../game/state.js';
-import { GROUND } from '../../config.js';
 import { hexA } from '../../core/math.js';
 import { COL_L } from '../palette.js';
 
@@ -16,7 +15,7 @@ export const SHUFA = '"Shufa","STKaiti","KaiTi","Songti SC",serif';
 export function castCallout(txt, elem){
   // 同一招连放就重题一次，别把同名字排成三行
   S.callouts = S.callouts.filter(c=>c.txt!==txt);
-  S.callouts.push({txt, t:0, life:1.18, x:114, y:GROUND-188,
+  S.callouts.push({txt, t:0, life:1.18, x:44, y:126,
     col: elem? (COL_L[elem]||'#f0e6c0') : '#f0e6c0'});
   if(S.callouts.length>2) S.callouts=S.callouts.slice(-2);
 }
@@ -33,7 +32,7 @@ export function drawCallout(){
     const a = p<0.13 ? p/0.13 : (p>0.6 ? Math.max(0,(1-p)/0.4) : 1);
     ctx.save();
     ctx.translate(c.x, c.y-rise);
-    ctx.rotate(-0.135);                       // 斜着题
+    ctx.rotate(-0.19);                        // 斜着题
     ctx.scale(sc,sc);
     ctx.font='400 '+size+'px '+SHUFA;
     ctx.lineJoin='round';

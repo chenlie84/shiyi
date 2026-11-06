@@ -9,70 +9,78 @@
 <body>
 <div class="app">
 
-  <!-- ── 顶栏 ───────────────────────────────────────────── -->
+  <!-- ── 顶栏：上行看数，下行操作 ─────────────────────── -->
   <div class="top">
-    <div class="logo">拾 遗 · 试 炼</div>
-    <div class="stat">第 <b id="floor">1</b> 层</div>
-    <div class="stat"><span class="rooms" id="rooms"></span> <b id="roomname">苔痕甬道</b></div>
-    <div class="stat">回合 <b id="turn">1</b></div>
-    <div class="stat">最深 <b id="best">0</b> 层</div>
-    <div class="stat">灵石 <b id="stones">0</b></div>
-    <div class="stat">器魂 <b id="soul" style="color:#7a4a8a">0</b></div>
-    <div class="stat">境界 <b id="lv">1</b> <span id="xptxt" style="font-size:10px">0/26</span></div>
-    <button data-act="meridian" style="border-color:#8a5a1f">经脉 <b id="pts" style="color:#8a5a1f">0</b></button>
-    <button data-act="dex" style="border-color:#3f7a6a">拾遗录 <b id="dexn" style="color:#3f7a6a">0</b></button>
-    <div class="spacer"></div>
-    <div class="stat">难度
-      <select id="diff" style="font-family:inherit;font-size:12px;border:1px solid var(--line);background:var(--paper);padding:2px 4px">
-        <option value="0.7">练气 · 易</option>
-        <option value="1" selected>筑基 · 常</option>
-        <option value="1.5">金丹 · 难</option>
-        <option value="2.2">元婴 · 苦</option>
-        <option value="3.2">化神 · 死</option>
-      </select>
+    <div class="trow">
+      <div class="logo">拾 遗</div>
+      <div class="stat date" id="date">—</div>
+      <div class="stat">第 <b id="floor">1</b> 层</div>
+      <div class="stat"><span class="rooms" id="rooms"></span> <b id="roomname">苔痕甬道</b></div>
+      <div class="stat">回合 <b id="turn">1</b></div>
+      <div class="stat">灵石 <b id="stones">0</b></div>
+      <div class="stat">器魂 <b id="soul" style="color:#7a4a8a">0</b></div>
+      <div class="stat">境界 <b id="lv">1</b> <span id="xptxt" class="sub2" style="font-size:10px">0/26</span></div>
     </div>
-    <button data-act="help">玩法</button>
-    <button data-act="reset">重来</button>
-  </div>
-
-  <!-- ── 主战场 + 右侧面板 ──────────────────────────────── -->
-  <div class="main">
-    <div class="left">
-      <canvas id="cv" width="640" height="520"></canvas>
-      <div id="loot"></div>
-      <div class="tip" style="width:640px">点下面七星技能出招。一层六间丹房，尽头是妖王殿。</div>
-    </div>
-
-    <div class="right">
-      <div class="panel">
-        <div class="ph">三才 · 天 / 人 / 地 <span class="sub2" style="letter-spacing:0">点装备看词条</span></div>
-        <div class="slots" id="slots"></div>
-        <div class="mulbox">
-          <div class="big" id="mul">×1.00</div>
-          <div class="tag" id="school" style="color:var(--ink2)">未成阵</div>
-          <div class="sub2" id="rels">—</div>
-        </div>
-        <div class="attrs" id="attrs"></div>
+    <div class="trow tacts">
+      <button class="pack" data-act="pack">三才 · 七星 · 行囊 <b id="packbadge" style="color:#a8811f"></b></button>
+      <button data-act="meridian" style="border-color:#8a5a1f">经脉 <b id="pts" style="color:#8a5a1f">0</b></button>
+      <button data-act="dex" style="border-color:#3f7a6a">拾遗录 <b id="dexn" style="color:#3f7a6a">0</b></button>
+      <div class="spacer"></div>
+      <div class="stat">难度
+        <select id="diff" style="font-family:inherit;font-size:12px;border:1px solid var(--line);background:var(--paper);padding:2px 4px">
+          <option value="0.7">练气 · 易</option>
+          <option value="1" selected>筑基 · 常</option>
+          <option value="1.5">金丹 · 难</option>
+          <option value="2.2">元婴 · 苦</option>
+          <option value="3.2">化神 · 死</option>
+        </select>
       </div>
-
-      <div class="panel">
-        <div class="ph">北斗七星 · 七技</div>
-        <div class="skills" id="skills"></div>
-      </div>
-
-      <div class="panel">
-        <div class="ph">战报</div>
-        <div class="log" id="log"></div>
-      </div>
+      <button data-act="help">玩法</button>
+      <button data-act="reset">重来</button>
     </div>
   </div>
 
-  <!-- ── 行囊 ───────────────────────────────────────────── -->
-  <div class="panel" style="margin-top:10px">
+  <!-- ── 主画面：镜头能上下左右走 ──────────────────────── -->
+  <div class="stage" id="stage">
+    <canvas id="cv" width="900" height="560"></canvas>
+    <div class="logbox" id="log"></div>
+    <div class="maphint">WASD / 方向键走位 · 也能点地走</div>
+  </div>
+
+  <div class="under">
+    <div id="loot"></div>
+    <div class="tip">WASD 走位，怪从四方围上来 —— 拉开距离能躲掉一回合。出招在上方「三才 · 七星 · 行囊」。</div>
+  </div>
+</div>
+
+<!-- ── 抽屉：三才 / 七星 / 行囊（默认收起，不占画面） ──── -->
+<div class="drawer" id="drawer">
+  <div class="dhead">
+    <b>三才 · 北斗 · 行囊</b>
+    <button class="sm" data-act="pack-close">收起</button>
+  </div>
+
+  <div class="panel">
+    <div class="ph">三才 · 天 / 人 / 地 <span class="sub2" style="letter-spacing:0">点装备看词条</span></div>
+    <div class="slots" id="slots"></div>
+    <div class="mulbox">
+      <div class="big" id="mul">×1.00</div>
+      <div class="tag" id="school" style="color:var(--ink2)">未成阵</div>
+      <div class="sub2" id="rels">—</div>
+    </div>
+    <div class="attrs" id="attrs"></div>
+  </div>
+
+  <div class="panel">
+    <div class="ph">北斗七星 · 七技 <span class="sub2" style="letter-spacing:0">点卡片出招 · 点「详」看解法</span></div>
+    <div class="skills" id="skills"></div>
+  </div>
+
+  <div class="panel">
     <div class="ph">行囊 <span class="sub2" id="bagcnt"></span>
       <button class="sm" data-act="salvage-junk" style="border-color:#7a4a8a;color:#7a4a8a">拆凡品</button>
-      <span class="sub2" style="letter-spacing:0">点卡片看详情 · 「炉」开熔炉打造 · 「拆」得器魂 · 宝品以上捡到时是蒙尘的，得先鉴</span>
     </div>
+    <div class="sub2" style="letter-spacing:0">点卡片看详情 · 「炉」开熔炉 · 「拆」得器魂 · 宝品以上捡到时是蒙尘的</div>
     <div class="bag" id="bag"></div>
   </div>
 </div>

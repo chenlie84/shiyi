@@ -20,13 +20,21 @@ import { MULT, COL } from '../data/elements.js';
 import { PATH_N } from '../data/spells.js';
 import { RAR_COL, RAR_NAME } from '../data/rarity.js';
 
+/** 今天的日子：公历 + 星期。界面上得有个"现在是哪天"的锚 */
+export function dateText(d){
+  const D = d || new Date();
+  const wk = ['日','一','二','三','四','五','六'][D.getDay()];
+  return (D.getMonth()+1) + '月' + D.getDate() + '日　周' + wk;
+}
+
 export function refresh(){
   const st=calcStats();
   const e=st.e;
 
+  $('date').textContent=dateText();
   $('floor').textContent=G.floor;
+  $('floor').title = '最深到过第 ' + (G.best || 0) + ' 层';
   $('turn').textContent=G.turn;
-  $('best').textContent=G.best;
   $('roomname').textContent=roomName();
   // 一层的路线图：走过的填实，当前这一间红着，妖王殿是菱形
   (()=>{
@@ -169,6 +177,8 @@ export function refresh(){
   const bag=$('bag'); bag.innerHTML='';
   const unidCnt=G.bag.filter(i=>i.ident===false).length;
   $('bagcnt').textContent='（'+G.bag.length+'）'+(unidCnt?' 待鉴 '+unidCnt:'');
+  const badge=$('packbadge');
+  if(badge) badge.textContent=unidCnt? '· '+unidCnt : '';
   const tvSum=it=>it.affixes.reduce((a,x)=>a+(6-x.t),0);
   const sorted=G.bag.slice().sort((a,b)=>{
     const ua=a.ident===false?1:0, ub=b.ident===false?1:0;
