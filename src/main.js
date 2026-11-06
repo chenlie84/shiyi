@@ -34,6 +34,23 @@ import { installActions } from './ui/actions.js';
 import { readFlags, FLAGS } from './platform/flags.js';
 import { installInput } from './platform/input.js';
 import { seed } from './core/rng.js';
+import { HELP_KEY } from './config.js';
+
+/** 玩法说明是不是已经看过（localStorage 不可用时当作没看过） */
+function seenHelp() {
+  try {
+    return localStorage.getItem(HELP_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+function markHelpSeen() {
+  try {
+    localStorage.setItem(HELP_KEY, '1');
+  } catch {
+    /* 隐私模式下写不进去，那就会每次都弹，也没办法 */
+  }
+}
 
 function boot() {
   readFlags();
@@ -78,7 +95,12 @@ function boot() {
   resetAll();
   requestAnimationFrame(loop);
 
-  if (!FLAGS.nohelp) showHelp();
+  // 玩法说明只在第一次进来时弹一次 —— 之后就靠顶栏「玩法」自己点，
+  // 不然每次刷新都被一屏文字挡住。
+  if (!FLAGS.nohelp && !seenHelp()) {
+    showHelp();
+    markHelpSeen();
+  }
 
   // ?auto —— 自动出招 / 自动配装，跑平衡用
   if (FLAGS.auto) {

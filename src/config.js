@@ -35,3 +35,6 @@ export const BEAM_OFF = [-64, 0, 64];
 
 /** 存档键 */
 export const SAVE_KEY = 'shiyi.meta.v1';
+
+/** 看过一次玩法说明就别再自动弹（点顶栏「玩法」随时能再看） */
+export const HELP_KEY = 'shiyi.help.seen';

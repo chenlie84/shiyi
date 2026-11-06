@@ -17,13 +17,31 @@ import { PRE, SUF, PREK, SUFK, TIERC } from '../data/affixes.js';
 import { COL } from '../data/elements.js';
 import { SK_MAX } from '../game/skills.js';
 
+/**
+ * 弹层外壳：右上角常驻一个「✕」
+ *
+ * 面板底下那排按钮在长内容里要滚到最底才看得见，没有一个随手能点的关闭，
+ * 人就卡在弹层里了 —— ✕ 固定在角上，不随内容滚走。
+ */
+function shell(html){
+  return '<button class="mx" onclick="closeModal()" title="关上（Esc）">✕</button>'+
+    '<div class="mbody">'+html+'</div>';
+}
+
 export function openModal(html){
-  modalEl().innerHTML=html; maskEl().classList.add('on');
+  modalEl().innerHTML=shell(html); maskEl().classList.add('on');
   document.body.classList.add('modal-on');
 }
 export function closeModal(){
   S.modalItem=null; maskEl().classList.remove('on');
   document.body.classList.remove('modal-on');
+}
+
+/** 点遮罩空白处关上 —— 面板本身要吃掉这个点击 */
+export function bindModalBackdrop(){
+  maskEl().addEventListener('pointerdown', (e)=>{
+    if(e.target===maskEl()) closeModal();
+  });
 }
 
 export function showItem(id){

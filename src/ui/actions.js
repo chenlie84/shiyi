@@ -8,7 +8,7 @@
 
 import { $, modalEl } from './dom.js';
 import { refresh } from './hud.js';
-import { showItem, showForge, openModal, closeModal } from './modal.js';
+import { showItem, showForge, openModal, closeModal, bindModalBackdrop } from './modal.js';
 import { showMeridian, showDex, pickLink, showHelp, showSpell } from './panels.js';
 import { takeRelic } from './relic-panel.js';
 import { log } from './log.js';
@@ -162,6 +162,9 @@ export function installActions() {
   // 难度下拉：换档立刻重排这一间的怪
   const sel = document.getElementById('diff');
   if (sel) sel.addEventListener('change', setDiff);
+
+  // 点弹层外面的暗色空白 = 关上
+  bindModalBackdrop();
 
   // Esc：先关弹层，再收抽屉
   window.addEventListener('keydown', (e) => {
