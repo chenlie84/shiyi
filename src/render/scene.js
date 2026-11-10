@@ -13,7 +13,8 @@ import { cv, ctx } from './canvas.js';
 import { S } from '../game/state.js';
 import { CV_W, CV_H, WORLD_W, WORLD_H } from '../config.js';
 import { updateCam, walkPlayer } from '../game/field.js';
-import { axis } from '../platform/input.js';
+import { tickAggro } from '../game/combat.js';
+import { axis, uiPaused } from '../platform/input.js';
 import { drawBG } from './draw/background.js';
 import { drawHero } from './draw/hero.js';
 import { drawMob } from './draw/mob.js';
@@ -27,6 +28,8 @@ export function updateVisual(dt) {
   walkPlayer(axis().x, axis().y, dt);
   updateCam(CV_W, CV_H, WORLD_W, WORLD_H);
   S.clock += dt;
+  // 妖魔不等玩家出招，自己循着气息围上来；翻面板 / 打击停顿时传 0 暂停
+  tickAggro(uiPaused() ? 0 : dt);
 
   if (S.shake > 0) S.shake = Math.max(0, S.shake - dt * 2.6);
   if (S.hitFlash > 0) S.hitFlash = Math.max(0, S.hitFlash - dt * 3);

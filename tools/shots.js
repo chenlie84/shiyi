@@ -21,7 +21,7 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 const CHROME =
   process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const PORT = 9335;
-const URL = process.env.URL || 'http://127.0.0.1:5173/?nohelp&seed=7';
+const URL = process.env.URL || 'http://127.0.0.1:5173/?nohelp&nointro&seed=7';
 const OUT = process.env.OUT || '.workbuddy/shots';
 
 mkdirSync(OUT, { recursive: true });

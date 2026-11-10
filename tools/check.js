@@ -19,6 +19,7 @@ import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, relative, dirname, resolve, basename } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { parseAst } from 'rollup/parseAst';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = join(ROOT, 'src');
@@ -215,6 +216,47 @@ if (ghost.length) {
   console.log(c.ok('✓ 具名') + '  所有 import 的名字都对得上');
 }
 
+/* ── 2c. 命名空间导入的成员真的存在 ─────────────────────────
+ * `import * as N from './data/names.js'` 之后写 N.不存在的名字，
+ * 具名检查看不见；node 里只是 undefined，要等点到那个按钮才炸。
+ * （QUEST_PLACE_HINT 少导出一位就是这么漏过去的）
+ */
+const SYM_NS = /import\s*\*\s*as\s+(\w+)\s+from\s*['"]([^'"]+)['"]/g;
+const nsFiles = new Set();   // 被整表引用的文件：孤儿导出检查里跳过
+const nsGhost = [];
+for (const f of files) {
+  const src = readFileSync(f, 'utf8');
+  const ns = new Map();
+  SYM_NS.lastIndex = 0;
+  let m;
+  while ((m = SYM_NS.exec(src))) {
+    const abs = resolve(dirname(f), m[2]);
+    if (exported.has(abs)) { ns.set(m[1], { abs, spec: m[2] }); nsFiles.add(abs); }
+  }
+  if (!ns.size) continue;
+  let ast;
+  try { ast = parseAst(src, { next: true }); } catch { continue; }
+  walkAst(ast, (n) => {
+    if (n.type !== 'MemberExpression' || n.computed) return;
+    if (!n.object || n.object.type !== 'Identifier' || !n.property || n.property.type !== 'Identifier') return;
+    const hit = ns.get(n.object.name);
+    if (!hit) return;
+    const e = exported.get(hit.abs);
+    if (e && !e.set.has(n.property.name)) {
+      nsGhost.push({ from: f, name: n.object.name + '.' + n.property.name, spec: hit.spec });
+    }
+  });
+}
+
+if (nsGhost.length) {
+  errors += nsGhost.length;
+  nsGhost.forEach((g) =>
+    console.log(c.bad('✗ 无此成员 ') + rel(g.from) + ' 用了「' + g.name + '」← ' + g.spec)
+  );
+} else {
+  console.log(c.ok('✓ 命名空间') + '  N.xxx 的成员都对得上');
+}
+
 // DFS 找环
 const state = new Map(); // 0 未访问 1 在栈上 2 完成
 const stack = [];
@@ -375,6 +417,7 @@ const KNOWN_UNUSED = new Set([
 const unused = [];
 for (const [f, names] of exportNames) {
   if (basename(f) === 'main.js') continue; // 入口本来就是终点
+  if (nsFiles.has(f)) continue;            // 整张表被 import * as N 用着，成员已在 2c 对过账
   const src = readFileSync(f, 'utf8');
   for (const nm of names) {
     if (importedNames.has(nm)) continue;
@@ -399,6 +442,162 @@ if (unused.length) {
   }
 } else {
   console.log(c.ok('✓ 导出') + '  没有孤儿导出');
+}
+
+/* ── 6. 未声明标识符 ─────────────────────────────────────────
+ * ESM 一定是严格模式：读一个没声明的名字会抛 ReferenceError，
+ * 而 node --check 和"具名导入"检查都抓不到（浏览器要等点到那个按钮才炸）。
+ * 已经栽过两次：loot.js 的 shake/hitFlash、modal.js 的 findItem / panels.js 的 xpNeed。
+ * 这里用 Vite 自带的 rollup/parseAst 做作用域粗查：整份文件里
+ * 「被引用过、但从未被 import / 声明 / 挂到 window」的名字一律报出来。
+ * 不做块级作用域 —— 漏一点总比把静默崩溃放过去强。
+ * ─────────────────────────────────────────────────────────── */
+
+const JS_GLOBALS = new Set([
+  // 语言内置
+  'undefined', 'NaN', 'Infinity', 'arguments', 'globalThis',
+  'Object', 'Array', 'String', 'Number', 'Boolean', 'Date', 'Math', 'JSON',
+  'RegExp', 'Error', 'TypeError', 'RangeError', 'SyntaxError', 'EvalError',
+  'Promise', 'Symbol', 'BigInt', 'Map', 'Set', 'WeakMap', 'WeakSet',
+  'Intl', 'Reflect', 'Proxy', 'Function',
+  'ArrayBuffer', 'SharedArrayBuffer', 'DataView', 'Atomics',
+  'Int8Array', 'Uint8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint16Array',
+  'Int32Array', 'Uint32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array',
+  'parseInt', 'parseFloat', 'isNaN', 'isFinite', 'eval',
+  'encodeURI', 'decodeURI', 'encodeURIComponent', 'decodeURIComponent', 'escape', 'unescape',
+  'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'queueMicrotask',
+  'structuredClone', 'atob', 'btoa', 'TextEncoder', 'TextDecoder',
+  // 浏览器
+  'window', 'document', 'navigator', 'location', 'history', 'screen',
+  'localStorage', 'sessionStorage', 'console', 'performance', 'crypto',
+  'requestAnimationFrame', 'cancelAnimationFrame', 'fetch', 'WebSocket',
+  'Event', 'CustomEvent', 'MouseEvent', 'KeyboardEvent', 'PointerEvent', 'TouchEvent',
+  'Image', 'Audio', 'AudioContext', 'URL', 'URLSearchParams', 'Blob', 'File', 'FileReader',
+  'FormData', 'Headers', 'Request', 'Response', 'AbortController',
+  'alert', 'confirm', 'prompt', 'getComputedStyle', 'matchMedia',
+  'MutationObserver', 'ResizeObserver', 'IntersectionObserver',
+  'devicePixelRatio', 'innerWidth', 'innerHeight',
+  // Node（tools/ 下的脚本也一起查）
+  'process', 'Buffer', 'module', 'require', 'exports', '__dirname', '__filename',
+]);
+
+/** 递归遍历 AST；数组只是容器，父节点保持不变 */
+function walkAst(node, visit, parent = null, key = '') {
+  if (!node || typeof node !== 'object') return;
+  if (Array.isArray(node)) {
+    for (const n of node) walkAst(n, visit, parent, key);
+    return;
+  }
+  if (typeof node.type === 'string') visit(node, parent, key);
+  for (const k of Object.keys(node)) {
+    if (k === 'type' || k === 'start' || k === 'end' || k === 'loc' || k === 'range') continue;
+    walkAst(node[k], visit, node, k);
+  }
+}
+
+/** 把一个绑定模式（含解构、默认值、rest）里的所有名字收进 out */
+function patternNames(node, out) {
+  if (!node) return out;
+  switch (node.type) {
+    case 'Identifier': out.add(node.name); break;
+    case 'ObjectPattern':
+      node.properties.forEach((p) => patternNames(p.type === 'RestElement' ? p.argument : p.value, out));
+      break;
+    case 'ArrayPattern': node.elements.forEach((e) => patternNames(e, out)); break;
+    case 'AssignmentPattern': patternNames(node.left, out); break;
+    case 'RestElement': patternNames(node.argument, out); break;
+  }
+  return out;
+}
+
+function declaredIn(ast) {
+  const set = new Set();
+  walkAst(ast, (n) => {
+    switch (n.type) {
+      case 'ImportDeclaration': n.specifiers.forEach((s) => set.add(s.local.name)); break;
+      case 'VariableDeclarator': patternNames(n.id, set); break;
+      case 'FunctionDeclaration':
+      case 'FunctionExpression':
+      case 'ArrowFunctionExpression':
+        if (n.id) set.add(n.id.name);
+        (n.params || []).forEach((p) => patternNames(p, set));
+        break;
+      case 'ClassDeclaration':
+      case 'ClassExpression': if (n.id) set.add(n.id.name); break;
+      case 'CatchClause': patternNames(n.param, set); break;
+    }
+  });
+  return set;
+}
+
+/** 被引用过的名字 → 首次出现位置（用于报行号） */
+function usedIn(ast) {
+  const map = new Map();
+  walkAst(ast, (n, p, k) => {
+    if (n.type !== 'Identifier' || !p) return;
+    // 这些位置的名字不是"读变量"
+    if (p.type === 'MemberExpression' && k === 'property' && !p.computed) return;
+    if (p.type === 'Property' && k === 'key' && !p.computed) return;
+    if ((p.type === 'MethodDefinition' || p.type === 'PropertyDefinition') && k === 'key' && !p.computed) return;
+    if (p.type === 'ImportSpecifier' && k === 'imported') return;
+    if (p.type === 'ExportSpecifier' && k === 'exported') return;
+    if (p.type === 'LabeledStatement' && k === 'label') return;
+    if ((p.type === 'BreakStatement' || p.type === 'ContinueStatement') && k === 'label') return;
+    if (p.type === 'MetaProperty') return;
+    if (!map.has(n.name)) map.set(n.name, n.start);
+  });
+  return map;
+}
+
+/** actions.js 里 Object.assign(window, {...}) 注入的全局名 */
+function injectedGlobals() {
+  const f = join(SRC, 'ui', 'actions.js');
+  const out = new Set();
+  if (!existsSync(f)) return out;
+  let ast;
+  try { ast = parseAst(readFileSync(f, 'utf8'), { next: true }); } catch { return out; }
+  walkAst(ast, (n) => {
+    if (n.type !== 'CallExpression' || n.callee.type !== 'MemberExpression') return;
+    const c = n.callee;
+    if (c.object?.name !== 'Object' || c.property?.name !== 'assign') return;
+    const obj = n.arguments && n.arguments[1];
+    if (!obj || obj.type !== 'ObjectExpression') return;
+    obj.properties.forEach((p) => {
+      const key = p.key;
+      if (!key) return;
+      if (key.type === 'Identifier') out.add(key.name);
+      else if (key.type === 'Literal') out.add(String(key.value));
+    });
+  });
+  return out;
+}
+
+const INJECTED = injectedGlobals();
+const undeclared = [];
+for (const f of files) {
+  const src = readFileSync(f, 'utf8');
+  let ast;
+  try { ast = parseAst(src, { next: true }); } catch { continue; } // 语法错已在第 1 段报过
+  const declared = declaredIn(ast);
+  for (const [name, start] of usedIn(ast)) {
+    if (declared.has(name) || JS_GLOBALS.has(name) || INJECTED.has(name)) continue;
+    undeclared.push({ f, name, line: src.slice(0, start).split('\n').length });
+  }
+}
+
+if (undeclared.length) {
+  errors += undeclared.length;
+  console.log(c.bad('✗ 未声明 ') + `共 ${undeclared.length} 处（严格模式下会抛 ReferenceError）`);
+  if (!QUIET) {
+    const byFile = new Map();
+    undeclared.forEach((u) => {
+      if (!byFile.has(u.f)) byFile.set(u.f, []);
+      byFile.get(u.f).push(u.name + ':' + u.line);
+    });
+    for (const [f, list] of byFile) console.log('   ' + rel(f) + c.dim('　' + list.join(', ')));
+  }
+} else {
+  console.log(c.ok('✓ 未声明') + '  没有裸变量');
 }
 
 /* ── 收尾 ──────────────────────────────────────────────────── */

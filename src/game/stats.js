@@ -95,6 +95,17 @@ export function calcStats() {
     sp: { aoe: 0, single: 0, low: 0, first: 0, regen: 0, drain: 0, weak: 0 },
   };
 
+  // 人物命格与村中流派：只给一点小幅加成，不参与三才成阵
+  // （决定强弱的仍是配装与符，开局的选择不该锁死后期流派）
+  const hb = G.bonus || {};
+  q.hpPct += hb.hpPct || 0;
+  q.atkPct += hb.atkPct || 0;
+  q.magPct += hb.magPct || 0;
+  q.defPct += hb.defPct || 0;
+  q.crit += hb.crit || 0;
+  q.critDmg += hb.critDmg || 0;
+  G.stonesPct = hb.stonesPct || 0; // 掉宝/灵石加成，winWave 结算时读
+
   // 经脉先落地
   const mb = merBonus();
   s.hp += mb.hp || 0;

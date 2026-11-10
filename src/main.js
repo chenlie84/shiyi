@@ -6,6 +6,7 @@
  */
 
 import './ui/styles.css';
+import './ui/world.css';
 
 import { initCanvas } from './render/canvas.js';
 import { bindPresenter } from './render/presenter.js';
@@ -21,6 +22,7 @@ import { G, S } from './game/state.js';
 import { resetAll } from './game/session.js';
 import { bindCombatUI, castSkill } from './game/combat.js';
 import { buildSkills } from './game/skills.js';
+import { initWorld, rollQuests, W } from './game/world.js';
 
 import { refresh } from './ui/hud.js';
 import { log } from './ui/log.js';
@@ -30,6 +32,8 @@ import { showHelp } from './ui/panels.js';
 import { showRelicPick } from './ui/relic-panel.js';
 import { showDeath, closeDeath } from './ui/death-panel.js';
 import { installActions } from './ui/actions.js';
+import { installAtlas, openAtlas } from './ui/worldmap.js';
+import { showIntro, setIntroDone } from './ui/intro.js';
 
 import { readFlags, FLAGS } from './platform/flags.js';
 import { installInput } from './platform/input.js';
@@ -50,6 +54,13 @@ function markHelpSeen() {
   } catch {
     /* 隐私模式下写不进去，那就会每次都弹，也没办法 */
   }
+}
+
+/** 弹一次玩法说明：只在没看过、且没开 ?nohelp 时 */
+function helpOnce() {
+  if (FLAGS.nohelp || seenHelp()) return;
+  showHelp();
+  markHelpSeen();
 }
 
 function boot() {
@@ -86,20 +97,32 @@ function boot() {
   bindCombatUI({ showRelicPick, showDeath, closeDeath });
 
   installActions();
+  installAtlas();
 
   // 调试口：控制台里能直接看运行状态（也方便抓特效截图）
   window.__G = G;
   window.__S = S;
+  window.__W = W;
 
   // 首屏
   resetAll();
   requestAnimationFrame(loop);
 
-  // 玩法说明只在第一次进来时弹一次 —— 之后就靠顶栏「玩法」自己点，
-  // 不然每次刷新都被一屏文字挡住。
-  if (!FLAGS.nohelp && !seenHelp()) {
-    showHelp();
-    markHelpSeen();
+  // 世界层：读回独立存档，并把遭遇战的胜/败断点接回战斗流程
+  const returning = initWorld();
+
+  /** 「入世」之后：发第一批差事 → 掀开舆图 → 首次玩法说明 */
+  function onboard() {
+    if (!W.quests.length) rollQuests(3);
+    openAtlas();
+    helpOnce();
+  }
+  setIntroDone(onboard);
+
+  // ?auto 跑平衡、?nointro 跑截图与探针，都别让开局流程挡住地宫
+  if (!FLAGS.auto && !FLAGS.nointro) {
+    if (returning) onboard();
+    else showIntro();
   }
 
   // ?auto —— 自动出招 / 自动配装，跑平衡用

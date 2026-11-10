@@ -20,6 +20,7 @@ import { castSkill, restart } from '../game/combat.js';
 import { resetAll } from '../game/session.js';
 import { makeWave } from '../game/waves.js';
 import { sfx } from '../render/sfx.js';
+import { openAtlas, hideAtlas } from './worldmap.js';
 
 /* ── 鉴定：花灵石 → 摊开给你看 ── */
 function uiIdentify(id) {
@@ -133,6 +134,7 @@ export function installActions() {
 
   /* ── 顶栏与抽屉按钮：一处委托，比在每个按钮上写 onclick 稳 ── */
   const ACT = {
+    atlas: openAtlas,
     pack: () => togglePack(),
     'pack-close': () => togglePack(false),
     meridian: showMeridian,
@@ -170,11 +172,14 @@ export function installActions() {
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       if (document.body.classList.contains('modal-on')) closeModal();
+      else if (document.body.classList.contains('atlas-on')) hideAtlas();
       else togglePack(false);
       return;
     }
     const b = document.body.classList;
-    if (b.contains('modal-on') || b.contains('drawer-on')) return;
+    // 开场与舆图是全屏层，数字键别隔着面板出招
+    if (b.contains('modal-on') || b.contains('drawer-on') ||
+        b.contains('intro-on') || b.contains('atlas-on')) return;
     const t = e.target;
     if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA')) return;
     if (e.key >= '1' && e.key <= '7') {

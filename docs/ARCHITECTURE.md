@@ -37,6 +37,10 @@
 | `core/` 不许 import 任何内部模块 | 零依赖工具，谁都可以安全引用它，包括测试 |
 | `platform/` 只许 import `core/`（和 `config.js` 常量） | 输入、调度、URL 开关都是"贴着浏览器"的东西，一旦知道游戏状态，就没法在无头环境里换掉 |
 
+`npm run check` 除上面四条外还查三件事：**具名导入**的名字对不对、
+**命名空间成员** `N.xxx` 在不在目标表里、**未声明的裸变量**（这三类都栽过跟头，
+ESM 严格模式下都是「点了那个按钮才炸」），顺带报孤儿导出。
+
 `ui/` 可以引一切，但**没人可以引 `ui/`**（`main.js` 除外）。
 所以 `combat.js` 需要弹「拾遗三选一」时，用的是注入的回调，不是 `import`：
 
@@ -73,11 +77,12 @@ presenter 的完整清单（`log / refresh / floatText / burst / hitStop / sfx /
 spawnCastFX / castCallout / spawnBeams / openModal / closeModal / showLoot /
 clearLoot / showRelic / toast`）就是 game 能对世界说的全部话。
 
-## 3 两个状态对象
+## 3 三个状态对象
 
 ```js
 G // 一局档案：波次、灵石、行囊、三才、经脉、拾遗录…… 全部可序列化
 S // 每帧舞台：怪物、气血、粒子、光柱、镜头抖动…… 不存档
+W // 世界进度：人物、流派、六试炼、四枢、主线阶段 —— 独立存档，跨「重来」保留
 ```
 
 - `G` 是**可以 JSON 化的**。要不要做存档，取决于什么时候把 `G` 写进
@@ -87,6 +92,36 @@ S // 每帧舞台：怪物、气血、粒子、光柱、镜头抖动…… 不�
 - 约定：**game 层随便读写 S；render / ui 只读，要改就走 game 的函数。**
   唯一例外是 `S.freeze`（打击停顿），由 `main.js` 注入的 `hitStop` 直接写 ——
   因为它是个渲染开关，不是游戏状态。
+- `W` 归 `game/world.js`，由 `platform/storage.js` 读写 `localStorage[WORLD_KEY]`。
+  `resetAll()` 只重置 `G/S`，角色与主线留着；人物先天与流派加成合并进 `G.bonus`，
+  `calcStats()` 只读这里。只有舆图里的「重塑此世」会调 `clearProgress()`。
+
+## 3.4 世界层：开局 → 舆图 → 遭遇战
+
+这一层只回答「在哪、打到哪、下一步是什么」，**战斗仍复用 `game/combat.js`**，
+不另写一套回合制。
+
+| 文件 | 职责 |
+| --- | --- |
+| `data/names.js` / `game/naming.js` | 人名、字号、地名、聚落、妖魔号的确定性生成器 |
+| `game/character.js` | 生辰 + 性情 + 性别 + salt → 人物初始信息（同输入永远同结果） |
+| `data/world.js` | 六残洲、六试炼、四流派、主线四阶段、差事模板 |
+| `game/world.js` | `W` 状态、存档、阶段推进、遭遇战结算、筑基 / 合洲 |
+| `platform/storage.js` | 世界进度的 localStorage 读写（隐私模式写不进去就当没存档） |
+| `ui/intro.js` | 仙魔大战开场 → 定名 → 入世（全屏层 `#intro`） |
+| `ui/worldmap.js` | 天地舆图（全屏层 `#atlas`）：主线 / 试炼 / 差事 / 流派入口 |
+
+`main.js` 启动时 `initWorld()` 恢复存档并注入 `onEncounterWin/Lose`；有角色就直接
+`openAtlas()`，没有就 `showIntro()`。「入世」回调统一发第一批差事、掀舆图、
+首次弹玩法说明（由 `setIntroDone()` 注册，重塑此世复用同一条）。
+
+遭遇战：`startTrial / startQuest / startRegion` 只负责摆怪、置 `G.waveMode`；
+`winWave()` 发现 `waveMode !== 'dungeon'` 就不推地宫房间，改由 `onEncounterWin()`
+结算进度并自动掀开舆图看战果。阵亡走 `onEncounterLose()`，不弹死亡面板、不扣进度。
+
+覆盖层级：`#intro`(80) > `#mask`(50) > `#atlas`(45) > `#drawer`(40)；
+`body.intro-on / atlas-on` 期间 `axis()` 走位与数字键出招都被屏蔽。
+`?auto`（跑平衡）与 `?nointro`（截图 / 探针）跳过开局，直接进地宫。
 
 ## 3.5 世界坐标 / 视口坐标 / 镜头
 
@@ -137,6 +172,25 @@ installInput(canvas, (sx, sy) => { S.moveTo = { x: sx + S.cam.x, y: sy + S.cam.y
 
 注意最后一步走的是 `delay()` 而不是 `setTimeout()`。这一层间接是**为了让测试
 能同步推进时间**（下一节）。
+
+### 妖魔自己会找上门
+
+`enemyTurn()` 只在玩家出一招之后跑 —— 站着不动，怪也站着。秘境里另有一条
+**主循环驱动**的自主寻敌：`render/scene.js` 每帧把 `dt` 交给
+`game/combat.js` 的 `tickAggro(dt)`，累计到 2s 就 `stepToPlayer()` 逼近一步，
+够得着才用 `mobStrike()` 出手（伤害 ×0.6）。
+
+三条约束：
+
+- **不占 `G.busy`、不推 `G.turn`**：真正的「回合」仍是出招 → 还手，
+  器灵回血 / 妖王自愈 / 修为这些回合末结算不会被平白多算几遍
+- **不碰 `document`**：面板暂停由 `platform/input.js` 的 `uiPaused()` 判断，
+  scene.js 在弹层 / 抽屉 / 开局 / 舆图挡着时传 `dt=0`，game 层保持无 DOM
+- **不用 `delay()` 自循环**：harness 的 `flush()` 会一直排空队列，自循环会把它撑爆；
+  主循环在 `tools/sim.js` 里根本不跑，纯数值回归不受影响
+
+`mobStrike()` 是「还手」与「自主扑击」共用的唯一一份伤害结算。
+玩家跑开（`PLAYER_SPEED=240` > 怪每 2s 的 `MOB_STEP=168`）仍能拉开距离躲掉一次。
 
 ## 5 时间与无头测试
 

@@ -2,11 +2,11 @@
  * 各类面板：经脉图 / 拾遗录 / 挂辅助 / 玩法说明
  */
 
-import { $, modalEl, maskEl } from './dom.js';
+import { $ } from './dom.js';
 import { refresh } from './hud.js';
 import { openModal, closeModal } from './modal.js';
 import { G, S } from '../game/state.js';
-import { calcStats } from '../game/stats.js';
+import { calcStats, xpNeed } from '../game/stats.js';
 import { buildSkills, STARS, resolve, skillPower, linkCount } from '../game/skills.js';
 import { merState, onNode, setLink, linkCandidates } from '../game/meridian.js';
 import { RUNE_MAX } from '../data/runes.js';
@@ -72,7 +72,7 @@ export function showMeridian(){
     list+='<div class="mrow"><span>'+nd.n+(lv>=2?' <span style="color:#a8811f;font-size:10px">大成</span>':'')+
       '</span><b style="color:#8a5a1f">'+d+'</b></div>';
   });
-  modalEl().innerHTML=
+  openModal(
     '<h3>经脉图</h3>'+
     '<div class="merbar">境界 <b>Lv'+G.lv+'</b>'+
       '<div class="xpbar"><i style="width:'+Math.min(100,G.xp/xpNeed(G.lv)*100)+'%"></i></div>'+
@@ -85,8 +85,7 @@ export function showMeridian(){
         '<h4>怎么得点</h4><div class="sub2">破阵涨修为，修为满一级，境界 +1，得 1 点经脉点。<br>'+
         '已通的穴还能再点一次「大成」，效果 ×1.8。<br>经脉加成是永久的，重开一局会清空。</div>'+
       '</div></div>'+
-    '<div class="row"><button onclick="closeModal()">关上</button></div>';
-  maskEl().classList.add('on');
+    '<div class="row"><button onclick="closeModal()">关上</button></div>');
 }
 
 /* ---------- 技能链接弹层 ---------- */
@@ -107,8 +106,7 @@ export function showDex(){
     html+='</div>';
   });
   html+='<div class="row"><button onclick="closeModal()">关上</button></div>';
-  modalEl().innerHTML=html;
-  maskEl().classList.add('on');
+  openModal(html);
 }
 
 export function pickLink(mainIdx){
@@ -144,8 +142,7 @@ export function pickLink(mainIdx){
   html+='</div><div class="row">'+
     (cnt? '<button onclick="setLink('+mainIdx+',null)">拆尽</button>':'')+
     '<button onclick="closeModal()">关上</button></div>';
-  modalEl().innerHTML=html;
-  maskEl().classList.add('on');
+  openModal(html);
 }
 
 /* ---------- 法术详情 ---------- */
@@ -160,12 +157,11 @@ export function showSpell(idx){
   if(!s) return;
 
   if(s.kind==='rune'){
-    modalEl().innerHTML='<h3>「'+s.name+'」</h3>'+
+    openModal('<h3>「'+s.name+'」</h3>'+
       '<p class="sub2">'+s.pos+' · '+s.from+' · 符 Lv'+s.lv+'</p>'+
       '<p>'+s.desc+'</p>'+
       '<p class="tip">符不能单独施放。点一件法术卡片上的「挂符」，把它挂上去改造那一式。</p>'+
-      '<div class="row"><button onclick="closeModal()">关上</button></div>';
-    maskEl().classList.add('on');
+      '<div class="row"><button onclick="closeModal()">关上</button></div>');
     return;
   }
 
@@ -208,8 +204,7 @@ export function showSpell(idx){
   html+='<div class="row">'+
     (cnt<2? '<button onclick="closeModal();pickLink('+idx+')">挂符</button>':'')+
     '<button onclick="closeModal()">关上</button></div>';
-  modalEl().innerHTML=html;
-  maskEl().classList.add('on');
+  openModal(html);
 }
 
 export function showHelp(){

@@ -22,6 +22,7 @@
       <div class="stat">境界 <b id="lv">1</b> <span id="xptxt" class="sub2" style="font-size:10px">0/26</span></div>
     </div>
     <div class="trow tacts">
+      <button data-act="atlas" style="border-color:#8a5a1f;color:#8a5a1f">天地 · 四洲残地</button>
       <button class="pack" data-act="pack">三才 · 七星 · 行囊 <b id="packbadge" style="color:#a8811f"></b></button>
       <button data-act="meridian" style="border-color:#8a5a1f">经脉 <b id="pts" style="color:#8a5a1f">0</b></button>
       <button data-act="dex" style="border-color:#3f7a6a">拾遗录 <b id="dexn" style="color:#3f7a6a">0</b></button>
@@ -51,7 +52,7 @@
 
   <div class="under">
     <div id="loot"></div>
-    <div class="tip">WASD 走位，怪从四方围上来 —— 拉开距离能躲掉一回合。出招点底下那排技能格，或直接按 <b>1</b>~<b>7</b>。</div>
+    <div class="tip">WASD 走位。<b>妖魔会自己循着气息围上来</b>，站着不动也会挨打 —— 拉开距离能躲掉一回合。出招点底下那排技能格，或直接按 <b>1</b>~<b>7</b>。</div>
   </div>
 </div>
 
@@ -88,6 +89,11 @@
 </div>
 
 <div class="mask" id="mask"><div class="modal" id="modal"></div></div>
+
+<!-- 开局：仙魔大战 → 定名 → 入世（全屏，盖住一切） -->
+<div id="intro"></div>
+<!-- 天地舆图：世界层主界面 -->
+<div id="atlas"></div>
 
 <script type="module" src="/src/main.js"></script>
 </body>

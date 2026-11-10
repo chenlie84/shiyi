@@ -10,9 +10,12 @@ import { afLabel, modLine } from './format.js';
 import { refresh } from './hud.js';
 import { G, S } from '../game/state.js';
 import { calcStats, relOf } from '../game/stats.js';
-import { nmOf, afText, effGrade, cntPre, cntSuf } from '../game/item.js';
-import { forge, identify, quenchCost, CAST_COST, GUIDE } from '../game/economy.js';
-import { RAR_COL, RAR_NAME, RAR_BG } from '../data/rarity.js';
+import {
+  nmOf, afText, effGrade, cntPre, cntSuf,
+  findItem, afDef, afUnit, freeKind, sellPrice, soulOf,
+} from '../game/item.js';
+import { forge, identify, quenchCost, CAST_COST, GUIDE, IDENT_COST } from '../game/economy.js';
+import { RAR_COL, RAR_NAME, RAR_BG, RAR_AFFIX } from '../data/rarity.js';
 import { PRE, SUF, PREK, SUFK, TIERC } from '../data/affixes.js';
 import { COL } from '../data/elements.js';
 import { SK_MAX } from '../game/skills.js';

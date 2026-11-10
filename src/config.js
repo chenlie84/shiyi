@@ -38,3 +38,6 @@ export const SAVE_KEY = 'shiyi.meta.v1';
 
 /** 看过一次玩法说明就别再自动弹（点顶栏「玩法」随时能再看） */
 export const HELP_KEY = 'shiyi.help.seen';
+
+/** 世界进度存档：人物、流派、六试炼、主线阶段 */
+export const WORLD_KEY = 'shiyi.world.v1';

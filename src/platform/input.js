@@ -35,6 +35,13 @@ function onKey(e, down) {
 
 const any = (list) => list.some((k) => held.has(k));
 
+/** 面板挡着画面：走位要停，妖魔的自主寻敌也该停，别在翻背包时挨打 */
+export function uiPaused() {
+  const b = document.body.classList;
+  return b.contains('modal-on') || b.contains('drawer-on') ||
+    b.contains('intro-on') || b.contains('atlas-on');
+}
+
 /**
  * 当前推杆，−1..1。
  * 开着弹层或抽屉就不许走 —— 那时玩家在翻面板，方向键该留给滚动条。
@@ -42,8 +49,7 @@ const any = (list) => list.some((k) => held.has(k));
 export function axis() {
   let x = 0;
   let y = 0;
-  const b = document.body.classList;
-  if (b.contains('modal-on') || b.contains('drawer-on')) return { x, y };
+  if (uiPaused()) return { x, y };
   if (any(KEY_LEFT)) x -= 1;
   if (any(KEY_RIGHT)) x += 1;
   if (any(KEY_UP)) y -= 1; // 屏幕上 = 世界 y 变小

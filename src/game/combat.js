@@ -32,6 +32,7 @@ export function startWave() {
   G.turn = 1;
   G.busy = false;
   G.over = false;
+  resetAggro();
 
   const st = calcStats();
   S.php = st.s.hp;
@@ -269,6 +270,64 @@ function finishCast(spec, power) {
 }
 
 /**
+ * 一只怪贴近之后的一次扑击。
+ * 玩家出招后的「还手」和秘境里不等玩家的「自主寻敌」共用这一份结算，
+ * 免得两条路各算一次伤害、数值慢慢走偏。
+ * @param {number} scale 自主扑击稍轻一点，别把站桩罚得太狠
+ */
+function mobStrike(m, st, q, scale = 1) {
+  if (m.dead || G.over) return;
+  m.atkAnim = 0.3;
+
+  let raw = Math.max(1, m.atk - st.s.def * 0.5);
+  raw = Math.round(raw * (1 - q.red / 100)); // 减伤
+  if (m.atkDown) {
+    raw = Math.max(1, Math.round(raw * m.atkDown)); // 缠 / 坠
+    m.atkDown = 0;
+  }
+  if (scale !== 1) raw = Math.max(1, Math.round(raw * scale));
+
+  let d = raw;
+  if (S.shield > 0) {
+    const absorb = Math.min(S.shield, d);
+    S.shield -= absorb;
+    d -= absorb;
+    if (d > 0) S.php -= d;
+    floatText(S.px, S.py - 70, absorb ? '盾挡 ' + absorb : '', '#6fa8c9');
+  } else {
+    S.php -= d;
+  }
+
+  if (d > 0) {
+    S.hitFlash = 0.45;
+    S.shake = 0.4;
+    S.pHurt = 0.16;
+    hitStop(0.035);
+    floatText(S.px + (rand() - 0.5) * 20, S.py - 80, '-' + d, '#e07a6a');
+    sfx('hurt');
+  }
+
+  // 反伤：按挨到的伤害回敬
+  if (q.reflect > 0 && raw > 0) {
+    const rf = Math.max(1, Math.round((raw * q.reflect) / 100));
+    m.hp -= rf;
+    m.hurt = 0.16;
+    burst(m.x, m.y - 10, 6, '#9b7ab0');
+    floatText(m.x, m.y - 30, '反 ' + rf, '#9b7ab0');
+    if (m.hp <= 0) {
+      m.dead = true;
+      m.hp = 0;
+    }
+  }
+
+  refresh();
+  if (S.php <= 0) {
+    S.php = 0;
+    onDeath();
+  }
+}
+
+/**
  * 敌人一起动：先往上围，够得着才动手
  *
  * 怪不是一开始就能打到你 —— 它们从四方走来，走一步算一个回合。
@@ -289,53 +348,7 @@ export function enemyTurn() {
         if (!inReach) return;
       }
 
-      m.atkAnim = 0.3;
-
-      let raw = Math.max(1, m.atk - st.s.def * 0.5);
-      raw = Math.round(raw * (1 - q.red / 100)); // 减伤
-      if (m.atkDown) {
-        raw = Math.max(1, Math.round(raw * m.atkDown)); // 缠 / 坠
-        m.atkDown = 0;
-      }
-
-      let d = raw;
-      if (S.shield > 0) {
-        const absorb = Math.min(S.shield, d);
-        S.shield -= absorb;
-        d -= absorb;
-        if (d > 0) S.php -= d;
-        floatText(S.px, S.py - 70, absorb ? '盾挡 ' + absorb : '', '#6fa8c9');
-      } else {
-        S.php -= d;
-      }
-
-      if (d > 0) {
-        S.hitFlash = 0.45;
-        S.shake = 0.4;
-        S.pHurt = 0.16;
-        hitStop(0.035);
-        floatText(S.px + (rand() - 0.5) * 20, S.py - 80, '-' + d, '#e07a6a');
-        sfx('hurt');
-      }
-
-      // 反伤：按挨到的伤害回敬
-      if (q.reflect > 0 && raw > 0) {
-        const rf = Math.max(1, Math.round((raw * q.reflect) / 100));
-        m.hp -= rf;
-        m.hurt = 0.16;
-        burst(m.x, m.y - 10, 6, '#9b7ab0');
-        floatText(m.x, m.y - 30, '反 ' + rf, '#9b7ab0');
-        if (m.hp <= 0) {
-          m.dead = true;
-          m.hp = 0;
-        }
-      }
-
-      refresh();
-      if (S.php <= 0) {
-        S.php = 0;
-        onDeath();
-      }
+      mobStrike(m, st, q);
     }, i * 120);
   });
 
@@ -380,6 +393,54 @@ export function enemyTurn() {
   }, alive().length * 120 + 420);
 }
 
+/* ── 妖魔自主寻敌 ─────────────────────────────────────────────
+ * 原来的 enemyTurn 只在玩家出一招之后才跑，玩家站着不动，怪也站着。
+ * 这里由渲染主循环按真实时间推：怪自己从四方围上来、够得着就动手，
+ * 玩家仍可以靠走位拉开距离躲掉一次。
+ *
+ * 刻意不占 G.busy、不推 G.turn ——「回合」依旧是出招 → 还手那一套，
+ * 器灵回血 / 妖王自愈 / 修为这些回合末结算不会被平白多算几遍，
+ * tools/sim.js 的纯数值回归也完全不受影响（它不跑主循环）。
+ */
+const AGGRO_STEP = 2.0; // 秒：每隔多久主动逼近 / 扑击一次（先走一步，再谈动手）
+const AGGRO_DMG = 0.6;  // 自主扑击比回合还手轻四成，留出想配装的时间
+let aggroClock = 0;
+
+/** 换房间 / 开遭遇战时把节奏归零，别一进门就挨一下 */
+export function resetAggro() {
+  aggroClock = 0;
+}
+
+/** 由 render/scene.js 的主循环按 dt 调用；面板挡着时传 0 即暂停 */
+export function tickAggro(dt) {
+  if (G.over || G.busy || !alive().length) {
+    aggroClock = 0;
+    return;
+  }
+  if (dt <= 0) return; // 打击停顿 / 面板挡着：先停一停，不重置计时
+  aggroClock += dt;
+  if (aggroClock < AGGRO_STEP) return;
+  aggroClock = 0;
+
+  const st = calcStats();
+  const q = st.q;
+  let acted = false;
+  alive().forEach((m) => {
+    if (m.dead || G.over) return;
+    // 远：先走近；这一步不算出手，所以「退开躲一回合」仍然成立
+    if (distToPlayer(m.x, m.y) > reachOf(m)) {
+      const inReach = stepToPlayer(m);
+      acted = true;
+      if (!inReach) return;
+    }
+    mobStrike(m, st, q, AGGRO_DMG);
+    acted = true;
+  });
+  if (acted) refresh();
+  // 反伤把最后一只磨死了，也得照常清这一间
+  if (!G.over && alive().length === 0) winWave();
+}
+
 /**
  * 清空这一间：结算掉落、修为，然后往前走
  *
@@ -387,7 +448,8 @@ export function enemyTurn() {
  */
 export function winWave() {
   G.over = true;
-  const boss = isBossRoom();
+  const encounter = G.waveMode;
+  const boss = encounter === 'dungeon' ? isBossRoom() : false;
   const n = prog(); // 推进之前先记下"这一间的等效进度"
 
   sfx('win');
@@ -399,7 +461,7 @@ export function winWave() {
   S.php = Math.min(st.s.hp, S.php + Math.round(st.s.hp * (boss ? 0.5 : 0.3)));
   G.best = Math.max(G.best, G.floor);
 
-  const gain = Math.round((8 + n * 4) * G.diff * (boss ? 2.5 : 1)); // 难度越高，灵石给得越多
+  const gain = Math.round((8 + n * 4) * G.diff * (boss ? 2.5 : 1) * (1 + (G.stonesPct || 0) / 100));
   G.stones += gain;
 
   /* ── 落宝 ── */
@@ -433,9 +495,11 @@ export function winWave() {
     '#2f6b52'
   );
 
-  /* ── 往前走 ── */
-  const step = advanceRoom();
-  if (step === 'floor') log('下到第 ' + G.floor + ' 层。', '#a8811f');
+  /* ── 往前走：只有地宫推房间，试炼/差事/游历由 world 层结算 ── */
+  if (encounter === 'dungeon') {
+    const step = advanceRoom();
+    if (step === 'floor') log('下到第 ' + G.floor + ' 层。', '#a8811f');
+  }
 
   // 修为：清一间涨修为，满一级升境界、给 1 点经脉点
   const xg = Math.round((12 + n * 4) * (boss ? 2 : 1));
@@ -451,6 +515,12 @@ export function winWave() {
   else log('修为 +' + xg + '（' + G.xp + '/' + xpNeed(G.lv) + '）', '#6b6154');
 
   refresh();
+
+  // 遭遇战（试炼 / 差事 / 游历）到此为止，把结算交回世界层，不弹拾遗、不进下一波
+  if (encounter !== 'dungeon') {
+    delay(() => { if (onEncounterWin) onEncounterWin(); }, 700);
+    return;
+  }
 
   // 妖王必掉三选一；寻常屋子每过三间给一次
   if (boss || n % 3 === 0) {
@@ -468,6 +538,10 @@ export function winWave() {
 export function onDeath() {
   if (G.over) return;
   G.over = true;
+  if (G.waveMode !== 'dungeon') {
+    if (onEncounterLose) onEncounterLose();
+    return; // 遭遇战不弹死亡面板，回地图养伤再来
+  }
   sfx('hurt');
   showDeath({
     floor: G.floor,
@@ -489,11 +563,15 @@ export function restart() {
 let showRelicPick = () => {};
 let showDeath = () => {};
 let closeDeath = () => {};
+let onEncounterWin = () => {};
+let onEncounterLose = () => {};
 
 export function bindCombatUI(hooks) {
   if (hooks.showRelicPick) showRelicPick = hooks.showRelicPick;
   if (hooks.showDeath) showDeath = hooks.showDeath;
   if (hooks.closeDeath) closeDeath = hooks.closeDeath;
+  if (hooks.onEncounterWin) onEncounterWin = hooks.onEncounterWin;
+  if (hooks.onEncounterLose) onEncounterLose = hooks.onEncounterLose;
 }
 
 export { alive };

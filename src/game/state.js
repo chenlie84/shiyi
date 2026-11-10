@@ -39,6 +39,8 @@ export const G = {
   over: false,
   log: [],
   autoPick: false,
+  waveMode: 'dungeon', // dungeon 地宫 / trial 试炼 / quest 差事 / region 游历
+  bonus: {},           // 人物与流派的小幅加成，由 game/world.js 写入
 };
 
 /** 舞台状态（每帧） */
@@ -103,6 +105,8 @@ export function resetState() {
   G.dex = {};
   G.soul = 0;
   G.uid = 1;
+  G.waveMode = 'dungeon';
+  // G.bonus 不重置：人物与流派属于世界进度，重开一局也留着
 
   S.mobs = [];
   S.target = 0;
